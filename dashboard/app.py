@@ -1,5 +1,12 @@
 import os
+import sys
 import time
+from pathlib import Path
+
+# Ensure dashboard/ is on sys.path (Streamlit Cloud hot-reloads can drop it).
+_DASHBOARD_DIR = Path(__file__).resolve().parent
+if str(_DASHBOARD_DIR) not in sys.path:
+    sys.path.insert(0, str(_DASHBOARD_DIR))
 
 import extra_streamlit_components as stx
 import streamlit as st

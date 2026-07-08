@@ -1,0 +1,39 @@
+# Render Blueprint — deploy the API from GitHub in one click.
+# Dashboard: use Streamlit Community Cloud (see README / deploy guide).
+services:
+  - type: web
+    name: post-generator-api
+    runtime: python
+    plan: free
+    region: frankfurt
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.9"
+      - key: DEBUG
+        value: "false"
+      - key: JWT_SECRET
+        generateValue: true
+      - key: DATABASE_URL
+        value: sqlite:///./app.db
+      - key: APP_PUBLIC_URL
+        sync: false
+      - key: DASHBOARD_URL
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: LINKEDIN_CLIENT_ID
+        sync: false
+      - key: LINKEDIN_CLIENT_SECRET
+        sync: false
+      - key: FACEBOOK_APP_ID
+        sync: false
+      - key: FACEBOOK_APP_SECRET
+        sync: false
+      - key: OAUTH_TOKEN_ENCRYPTION_KEY
+        sync: false
+      - key: PLATFORM_ADMIN_EMAIL
+        sync: false

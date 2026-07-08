@@ -38,6 +38,8 @@ class Settings(BaseSettings):
     # LinkedIn OAuth (https://www.linkedin.com/developers/)
     linkedin_client_id: str = ""
     linkedin_client_secret: str = ""
+    # Org scopes need Community Management API on a separate LinkedIn app.
+    linkedin_include_org_scopes: bool = False
 
     # Meta / Facebook OAuth (https://developers.facebook.com/)
     facebook_app_id: str = ""

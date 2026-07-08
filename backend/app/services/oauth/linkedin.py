@@ -14,14 +14,24 @@ LINKEDIN_ORG_URL = "https://api.linkedin.com/v2/organizations"
 
 # Personal posts: w_member_social (Share on LinkedIn).
 # Company page posts: org scopes (Community Management API product).
-LINKEDIN_SCOPES = [
+LINKEDIN_SCOPES_BASE = [
     "openid",
     "profile",
     "email",
     "w_member_social",
+]
+LINKEDIN_SCOPES_ORG = [
     "r_organization_admin",
     "w_organization_social",
 ]
+
+
+def linkedin_scopes() -> list[str]:
+    settings = get_settings()
+    scopes = list(LINKEDIN_SCOPES_BASE)
+    if settings.linkedin_include_org_scopes:
+        scopes.extend(LINKEDIN_SCOPES_ORG)
+    return scopes
 
 
 @dataclass
@@ -107,7 +117,7 @@ def linkedin_authorization_url(state: str) -> str:
         "client_id": settings.linkedin_client_id,
         "redirect_uri": settings.linkedin_redirect_uri,
         "state": state,
-        "scope": " ".join(LINKEDIN_SCOPES),
+        "scope": " ".join(linkedin_scopes()),
     }
     return f"{LINKEDIN_AUTH_URL}?{urlencode(params)}"
 
@@ -134,7 +144,7 @@ def linkedin_exchange_code(code: str) -> OAuthTokens:
         access_token=payload["access_token"],
         refresh_token=payload.get("refresh_token"),
         expires_at=expires_at,
-        scopes=payload.get("scope", " ".join(LINKEDIN_SCOPES)),
+        scopes=payload.get("scope", " ".join(linkedin_scopes())),
     )
 
 

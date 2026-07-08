@@ -40,7 +40,7 @@ def oauth_status() -> OAuthStatusResponse:
         linkedin_configured=settings.linkedin_oauth_configured(),
         facebook_configured=settings.facebook_oauth_configured(),
         linkedin_redirect_uri=settings.linkedin_redirect_uri,
-        linkedin_scopes=" ".join(linkedin_oauth.LINKEDIN_SCOPES),
+        linkedin_scopes=" ".join(linkedin_oauth.linkedin_scopes()),
         privacy_policy_url=settings.privacy_policy_url,
     )
 

@@ -16,6 +16,11 @@ class Platform(str, Enum):
     instagram = "instagram"
 
 
+# Platforms users can pick when creating a post (drives publish routing).
+CREATABLE_PLATFORMS = frozenset({Platform.linkedin, Platform.facebook})
+PUBLISHABLE_PLATFORMS = frozenset({Platform.linkedin, Platform.facebook})
+
+
 class GenerateMode(str, Enum):
     instant = "instant"
     scheduled_manual = "scheduled_manual"

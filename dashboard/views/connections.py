@@ -4,6 +4,23 @@ from api_client import ApiClient, ApiError
 from components.layout import page_header
 
 
+POST_TYPE_LABELS = {
+    "professional": "Professional / Educational → Company Page",
+    "personal": "Personal / Founder → Your profile",
+}
+
+
+def _account_kind_label(account: dict) -> str:
+    kind = account.get("account_type") or "account"
+    if kind == "profile":
+        return "Personal profile"
+    if kind == "organization":
+        return "Company Page"
+    if kind == "page":
+        return "Facebook Page"
+    return kind.replace("_", " ").title()
+
+
 def _render_facebook_page_picker(client: ApiClient, token: str, company_id: int) -> None:
     pending_id = st.session_state.get("facebook_pending_id")
     if not pending_id:
@@ -69,10 +86,10 @@ def render_connections(
     if my_accounts:
         for account in my_accounts:
             col1, col2 = st.columns([4, 1])
-            kind = account.get("account_type") or "account"
             with col1:
                 st.markdown(
-                    f"**{account['platform'].title()}** — {account['account_name']} ({kind})"
+                    f"**{account['platform'].title()}** — {account['account_name']} "
+                    f"({_account_kind_label(account)})"
                 )
             with col2:
                 if can_edit and st.button("Disconnect", key=f"disconnect_{account['id']}"):
@@ -90,7 +107,7 @@ def render_connections(
         st.caption("Other members of your company have connected these accounts.")
         for account in team_accounts:
             owner = account.get("connected_by_email") or "teammate"
-            kind = account.get("account_type") or "account"
+            kind = _account_kind_label(account)
             st.markdown(
                 f"- **{account['platform'].title()}** — {account['account_name']} ({kind}) · {owner}"
             )
@@ -108,6 +125,7 @@ def render_connections(
 3. **Products** tab — add:
    - **Sign In with LinkedIn using OpenID Connect**
    - **Share on LinkedIn**
+   - **Community Management API** (required for Company Page posts)
 4. **Auth** tab — add this redirect URL (must match exactly):
                 """
             )
@@ -126,7 +144,11 @@ def render_connections(
    ```
 7. Restart the API, then refresh this page.
 
-**Scopes:** """ + oauth_status.get("linkedin_scopes", "openid profile email w_member_social")
+**Scopes:** """ + oauth_status.get("linkedin_scopes", "")
+            )
+            st.caption(
+                "After connecting, professional posts publish to your LinkedIn Company Page "
+                "(e.g. KJSolution). Personal posts publish from your personal profile."
             )
 
     if not oauth_status.get("linkedin_configured") and not oauth_status.get("facebook_configured"):
@@ -144,13 +166,28 @@ def render_connections(
     with col_li:
         with st.container(border=True):
             st.markdown("#### LinkedIn")
-            st.caption("Connect the LinkedIn profile you want to post from.")
-            linkedin_connected = any(
-                a["platform"] == "linkedin" and a.get("connected_by_email") == user_email
+            st.caption(
+                "Connect once — we detect your personal profile and any Company Pages you admin."
+            )
+            linkedin_profile = any(
+                a["platform"] == "linkedin"
+                and a.get("connected_by_email") == user_email
+                and a.get("account_type") == "profile"
                 for a in my_accounts
             )
-            if linkedin_connected:
-                st.success("Your LinkedIn profile is connected.")
+            linkedin_pages = [
+                a for a in my_accounts
+                if a["platform"] == "linkedin"
+                and a.get("connected_by_email") == user_email
+                and a.get("account_type") == "organization"
+            ]
+            if linkedin_profile:
+                st.success("LinkedIn personal profile connected.")
+            if linkedin_pages:
+                names = ", ".join(a["account_name"] for a in linkedin_pages)
+                st.success(f"LinkedIn Company Page(s): **{names}**")
+            if linkedin_profile or linkedin_pages:
+                pass
             elif oauth_status.get("linkedin_configured"):
                 if st.button("Connect LinkedIn", key="connect_linkedin", use_container_width=True):
                     try:

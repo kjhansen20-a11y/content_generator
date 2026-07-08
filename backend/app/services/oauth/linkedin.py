@@ -9,9 +9,19 @@ from app.config import get_settings
 LINKEDIN_AUTH_URL = "https://www.linkedin.com/oauth/v2/authorization"
 LINKEDIN_TOKEN_URL = "https://www.linkedin.com/oauth/v2/accessToken"
 LINKEDIN_USERINFO_URL = "https://api.linkedin.com/v2/userinfo"
+LINKEDIN_ORG_ACLS_URL = "https://api.linkedin.com/v2/organizationAcls"
+LINKEDIN_ORG_URL = "https://api.linkedin.com/v2/organizations"
 
-# Post as member; org posting needs Marketing Developer Platform approval.
-LINKEDIN_SCOPES = ["openid", "profile", "email", "w_member_social"]
+# Personal posts: w_member_social (Share on LinkedIn).
+# Company page posts: org scopes (Community Management API product).
+LINKEDIN_SCOPES = [
+    "openid",
+    "profile",
+    "email",
+    "w_member_social",
+    "r_organization_admin",
+    "w_organization_social",
+]
 
 
 @dataclass
@@ -27,6 +37,67 @@ class OAuthProfile:
     external_id: str
     display_name: str
     account_type: str
+
+
+@dataclass
+class LinkedInOrganization:
+    external_id: str
+    display_name: str
+
+
+def _linkedin_headers(access_token: str) -> dict[str, str]:
+    return {
+        "Authorization": f"Bearer {access_token}",
+        "X-Restli-Protocol-Version": "2.0.0",
+    }
+
+
+def _organization_name(client: httpx.Client, access_token: str, org_id: str) -> str:
+    response = client.get(
+        f"{LINKEDIN_ORG_URL}/{org_id}",
+        params={"projection": "(localizedName)"},
+        headers=_linkedin_headers(access_token),
+    )
+    if response.is_error:
+        return f"Company Page {org_id}"
+    localized = response.json().get("localizedName")
+    if isinstance(localized, dict):
+        return str(localized.get("en_US") or next(iter(localized.values()), f"Company Page {org_id}"))
+    if isinstance(localized, str) and localized.strip():
+        return localized
+    return f"Company Page {org_id}"
+
+
+def linkedin_list_admin_organizations(access_token: str) -> list[LinkedInOrganization]:
+    """Return LinkedIn Company Pages the member can administer."""
+    organizations: list[LinkedInOrganization] = []
+    seen: set[str] = set()
+
+    with httpx.Client(timeout=30) as client:
+        response = client.get(
+            LINKEDIN_ORG_ACLS_URL,
+            params={"q": "roleAssignee", "role": "ADMINISTRATOR"},
+            headers=_linkedin_headers(access_token),
+        )
+        if response.status_code in (403, 401):
+            return []
+        response.raise_for_status()
+        elements = response.json().get("elements") or []
+
+        for element in elements:
+            org_ref = element.get("organization") or element.get("organizationalTarget") or ""
+            org_id = str(org_ref).split(":")[-1]
+            if not org_id or org_id in seen:
+                continue
+            seen.add(org_id)
+            organizations.append(
+                LinkedInOrganization(
+                    external_id=org_id,
+                    display_name=_organization_name(client, access_token, org_id),
+                )
+            )
+
+    return organizations
 
 
 def linkedin_authorization_url(state: str) -> str:
@@ -78,4 +149,4 @@ def linkedin_fetch_profile(access_token: str) -> OAuthProfile:
 
     name = data.get("name") or data.get("given_name") or "LinkedIn account"
     external_id = str(data.get("sub", ""))
-    return OAuthProfile(external_id=external_id, display_name=name, account_type="user")
+    return OAuthProfile(external_id=external_id, display_name=name, account_type="profile")

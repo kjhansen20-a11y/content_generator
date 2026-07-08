@@ -11,6 +11,7 @@ from app.models.content import (
     GeneratedPost,
     Platform,
     PostType,
+    PUBLISHABLE_PLATFORMS,
 )
 from app.models.knowledge import FileKind
 from app.models.planning import ContentPillar
@@ -103,6 +104,16 @@ def _pillar_description(session: Session, pillar_id: int | None) -> str | None:
     return pillar.description if pillar else None
 
 
+def _lock_content_platform(
+    content: GeneratedPostContent,
+    platform: Platform,
+    post_type: PostType,
+) -> GeneratedPostContent:
+    return content.model_copy(
+        update={"platform": platform.value, "post_type": post_type.value},
+    )
+
+
 def _resolve_generation(
     session: Session,
     company_id: int,
@@ -146,6 +157,14 @@ def _resolve_generation(
         company_id,
         use_next_week=request.use_next_week,
     )
+    if slot.platform not in PUBLISHABLE_PLATFORMS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                f"Your next marketing plan slot is {slot.platform.value.title()}, which is not "
+                "supported for publishing yet. Update your plan to use LinkedIn or Facebook."
+            ),
+        )
     label = _slot_label(slot)
     idea = (request.content_idea or "").strip()
     pillar_desc = _pillar_description(session, slot.pillar_id)
@@ -271,6 +290,8 @@ def generate_post(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="Generated post is missing required fields (hook/body)",
         )
+
+    content = _lock_content_platform(content, platform, post_type)
 
     generated_post = GeneratedPost(
         company_id=company.id,

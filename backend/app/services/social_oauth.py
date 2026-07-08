@@ -5,8 +5,9 @@ from fastapi import HTTPException, status
 from sqlmodel import Session, select
 
 from app.config import get_settings
-from app.models.content import Platform
+from app.models.content import Platform, PostType
 from app.models.publishing import AccountStatus, ConnectedAccount
+from app.models.tenancy import Company
 from app.services.oauth import facebook as facebook_oauth
 from app.services.oauth import linkedin as linkedin_oauth
 from app.services.oauth.pending import (
@@ -108,6 +109,20 @@ def oauth_handle_callback(
             expires_at=tokens.expires_at,
             scopes=tokens.scopes,
         )
+        for org in linkedin_oauth.linkedin_list_admin_organizations(tokens.access_token):
+            _upsert_connected_account(
+                session,
+                company_id=company_id,
+                user_id=user_id,
+                platform=Platform.linkedin,
+                profile_name=org.display_name,
+                external_id=org.external_id,
+                account_type="organization",
+                access_token=tokens.access_token,
+                refresh_token=tokens.refresh_token,
+                expires_at=tokens.expires_at,
+                scopes=tokens.scopes,
+            )
         return OAuthCallbackResult(account=account, platform=platform)
 
     if platform == Platform.facebook.value:
@@ -264,30 +279,53 @@ def disconnect_account(session: Session, company_id: int, account_id: int) -> No
     session.commit()
 
 
+def _pick_linkedin_organization(
+    session: Session,
+    company_id: int,
+    user_id: int,
+    accounts: list[ConnectedAccount],
+) -> ConnectedAccount | None:
+    if not accounts:
+        return None
+    if len(accounts) == 1:
+        return accounts[0]
+
+    company = session.get(Company, company_id)
+    if company and company.name:
+        company_name = company.name.lower()
+        for account in accounts:
+            page_name = account.account_name.lower()
+            if company_name in page_name or page_name in company_name:
+                return account
+
+    return sorted(accounts, key=lambda a: a.account_name)[0]
+
+
 def get_active_real_account(
     session: Session,
     company_id: int,
     platform: Platform,
     *,
     user_id: int | None = None,
-    post_type: str | None = None,
+    post_type: str | PostType | None = None,
 ) -> ConnectedAccount | None:
-    """Resolve which connected account to publish with (per-user profile vs shared page)."""
-    if platform == Platform.linkedin:
-        if user_id is not None:
-            personal = session.exec(
-                select(ConnectedAccount).where(
-                    ConnectedAccount.company_id == company_id,
-                    ConnectedAccount.platform == platform,
-                    ConnectedAccount.is_mock == False,  # noqa: E712
-                    ConnectedAccount.status == AccountStatus.active,
-                    ConnectedAccount.connected_by_user_id == user_id,
-                    ConnectedAccount.account_type == "profile",
-                    ConnectedAccount.access_token_encrypted.is_not(None),
-                )
-            ).first()
-            if personal:
-                return personal
+    """Resolve which connected account to publish with (profile vs company page)."""
+    if platform == Platform.linkedin and user_id is not None:
+        use_profile = post_type in (PostType.personal, PostType.personal.value)
+        account_type = "profile" if use_profile else "organization"
+        query = select(ConnectedAccount).where(
+            ConnectedAccount.company_id == company_id,
+            ConnectedAccount.platform == platform,
+            ConnectedAccount.is_mock == False,  # noqa: E712
+            ConnectedAccount.status == AccountStatus.active,
+            ConnectedAccount.connected_by_user_id == user_id,
+            ConnectedAccount.account_type == account_type,
+            ConnectedAccount.access_token_encrypted.is_not(None),
+        )
+        if account_type == "organization":
+            org_accounts = list(session.exec(query).all())
+            return _pick_linkedin_organization(session, company_id, user_id, org_accounts)
+        return session.exec(query).first()
 
     return session.exec(
         select(ConnectedAccount).where(

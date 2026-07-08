@@ -10,6 +10,8 @@ services:
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /health
+    domains:
+      - api.kj-solution.com
     envVars:
       - key: PYTHON_VERSION
         value: "3.12.9"
@@ -20,9 +22,9 @@ services:
       - key: DATABASE_URL
         sync: false
       - key: APP_PUBLIC_URL
-        sync: false
+        value: https://api.kj-solution.com
       - key: DASHBOARD_URL
-        sync: false
+        value: https://kjsolutioncontentgenerator.streamlit.app
       - key: OPENAI_API_KEY
         sync: false
       - key: LINKEDIN_CLIENT_ID

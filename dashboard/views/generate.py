@@ -8,7 +8,8 @@ from components.platform_preview import render_platform_preview
 from components.post_image import load_post_image
 from components.posting_time_guide import render_posting_time_guide
 
-WEEKDAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+PUBLISH_PLATFORMS = ["linkedin", "facebook"]
+PLATFORM_LABELS = {"linkedin": "LinkedIn", "facebook": "Facebook"}
 
 GEN_MODE_LABELS = {
     "instant": "Instant post",
@@ -67,11 +68,21 @@ def render_generate_post(client: ApiClient, token: str, company_id: int, can_edi
                 "Post type",
                 options=["professional", "personal"],
                 format_func=lambda x: (
-                    "Professional / Educational" if x == "professional" else "Personal / Founder"
+                    "Professional / Educational → Company Page"
+                    if x == "professional"
+                    else "Personal / Founder → Your profile"
                 ),
+                help="For LinkedIn: professional posts publish to your Company Page; personal posts publish from your profile.",
             )
         with col2:
-            platform = st.selectbox("Platform", options=["linkedin", "facebook", "instagram"])
+            platform = st.selectbox(
+                "Publish to",
+                options=PUBLISH_PLATFORMS,
+                format_func=lambda x: PLATFORM_LABELS[x],
+                help="This post will be published to the platform you choose when you queue it.",
+            )
+
+        st.info(f"This post will publish to **{PLATFORM_LABELS[platform]}** when you queue and publish it.")
 
         if gen_mode == "manual":
             render_posting_time_guide(platform)
@@ -307,7 +318,8 @@ def _render_last_generated(client: ApiClient, token: str, company_id: int) -> No
     st.subheader("Your new post")
     slot_label = st.session_state.pop("last_slot_label", None)
     schedule_label = st.session_state.pop("last_schedule_label", None)
-    caption = f"Status: {item['status'].capitalize()}" + _schedule_caption(item)
+    caption = f"Status: {item['status'].capitalize()} · **Publish to: {PLATFORM_LABELS.get(item['platform'], item['platform'].title())}**"
+    caption += _schedule_caption(item)
     if slot_label:
         caption += f" · Plan slot: {slot_label}"
     elif schedule_label:

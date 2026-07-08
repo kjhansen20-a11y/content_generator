@@ -5,6 +5,48 @@ from components.layout import page_header
 from components.platform_preview import render_platform_preview
 from components.post_image import load_post_image
 
+PLATFORM_LABELS = {"linkedin": "LinkedIn", "facebook": "Facebook"}
+
+
+POST_TYPE_LABELS = {
+    "professional": "Professional → Company Page",
+    "personal": "Personal → Your profile",
+}
+
+
+def _item_publish_ready(accounts: list[dict], item: dict) -> bool:
+    platform = item.get("platform", "")
+    if platform == "facebook":
+        return _platform_connected(accounts, "facebook")
+    if platform == "linkedin":
+        post_type = item.get("post_type", "professional")
+        account_type = "profile" if post_type == "personal" else "organization"
+        return any(
+            a.get("platform") == "linkedin"
+            and not a.get("is_mock")
+            and a.get("status") == "active"
+            and a.get("account_type") == account_type
+            for a in accounts
+        )
+    return False
+
+
+def _publish_target_label(item: dict) -> str:
+    platform = PLATFORM_LABELS.get(item.get("platform", ""), item.get("platform", "").title())
+    post_type = item.get("post_type", "professional")
+    if item.get("platform") == "linkedin":
+        if post_type == "personal":
+            return f"{platform} · Personal profile"
+        return f"{platform} · Company Page"
+    return platform
+
+
+def _platform_connected(accounts: list[dict], platform: str) -> bool:
+    return any(
+        a.get("platform") == platform and not a.get("is_mock") and a.get("status") == "active"
+        for a in accounts
+    )
+
 
 def _render_feed_preview(
     client: ApiClient,
@@ -34,7 +76,10 @@ def render_publishing_queue(
     can_edit: bool,
     company_name: str = "Your Company",
 ) -> None:
-    page_header("Publishing Queue", "Publish queued posts to your connected social accounts.")
+    page_header(
+        "Publishing Queue",
+        "Each queued post publishes to the platform set when you created it (LinkedIn or Facebook).",
+    )
 
     try:
         queue = client.list_publishing_queue(token, company_id)
@@ -43,42 +88,62 @@ def render_publishing_queue(
         st.error(str(exc))
         return
 
-    has_real = any(not a.get("is_mock") and a.get("status") == "active" for a in accounts)
-    if not has_real and can_edit:
-        st.info("Connect LinkedIn or Facebook in the **Connections** tab before publishing for real.")
-
-    st.subheader(f"Queued posts ({len(queue)})")
-
     if not queue:
         st.success("No posts waiting in the queue.")
-    else:
-        publish_label = "Publish all queued" if has_real else "Publish all queued (mock)"
-        if can_edit and st.button(publish_label, type="primary"):
-            with st.spinner("Publishing…"):
-                try:
-                    results = client.publish_all(token, company_id)
-                    st.success(f"Published {len(results)} post(s).")
-                    st.rerun()
-                except ApiError as exc:
-                    st.error(str(exc))
+        return
 
-        for item in queue:
-            with st.expander(
-                f"{item['platform']} · {item.get('hook_preview') or 'Untitled'}",
-                expanded=True,
-            ):
-                st.caption(_schedule_caption(item))
-                st.subheader("Feed preview")
-                _render_feed_preview(client, token, company_id, company_name, item)
-                if can_edit:
-                    single_label = "Publish now" if has_real else "Publish now (mock)"
-                    if st.button(single_label, key=f"publish_{item['id']}"):
-                        try:
-                            result = client.publish_item(token, company_id, item["id"])
-                            st.success(result["job"]["result_message"])
-                            st.rerun()
-                        except ApiError as exc:
-                            st.error(str(exc))
+    ready_count = sum(1 for item in queue if _item_publish_ready(accounts, item))
+    st.subheader(f"Queued posts ({len(queue)})")
+    if ready_count < len(queue):
+        st.warning(
+            "Some queued posts are missing a connected account for their target platform. "
+            "Connect the matching platform in **Connections** before publishing."
+        )
+
+    if can_edit and st.button("Publish all queued", type="primary"):
+        with st.spinner("Publishing…"):
+            try:
+                results = client.publish_all(token, company_id)
+                st.success(f"Published {len(results)} post(s).")
+                st.rerun()
+            except ApiError as exc:
+                st.error(str(exc))
+
+    for item in queue:
+        platform = item.get("platform", "linkedin")
+        platform_label = PLATFORM_LABELS.get(platform, platform.title())
+        target_label = _publish_target_label(item)
+        with st.expander(
+            f"{target_label} · {item.get('hook_preview') or 'Untitled'}",
+            expanded=True,
+        ):
+            st.markdown(f"**Publish to:** {target_label}")
+            st.caption(POST_TYPE_LABELS.get(item.get("post_type", "professional"), ""))
+            st.caption(_schedule_caption(item))
+            if not _item_publish_ready(accounts, item):
+                if platform == "linkedin" and item.get("post_type") == "personal":
+                    st.error("Connect your **LinkedIn personal profile** in Connections.")
+                elif platform == "linkedin":
+                    st.error(
+                        "Connect your **LinkedIn Company Page** in Connections "
+                        "(requires Community Management API on your LinkedIn app)."
+                    )
+                else:
+                    st.error(f"Connect **{platform_label}** in Connections to publish this post.")
+            st.subheader("Feed preview")
+            _render_feed_preview(client, token, company_id, company_name, item)
+            if can_edit:
+                if st.button(
+                    f"Publish to {target_label}",
+                    key=f"publish_{item['id']}",
+                    disabled=not _item_publish_ready(accounts, item),
+                ):
+                    try:
+                        result = client.publish_item(token, company_id, item["id"])
+                        st.success(result["job"]["result_message"])
+                        st.rerun()
+                    except ApiError as exc:
+                        st.error(str(exc))
 
 
 def _schedule_caption(item: dict) -> str:
@@ -112,7 +177,9 @@ def render_previous_posts(
 
     st.subheader(f"Published posts ({len(published)})")
     for job in published:
-        label = f"{str(job.get('platform') or 'unknown').title()} · {job.get('hook_preview') or 'Post'}"
+        platform = str(job.get("platform") or "unknown")
+        platform_label = PLATFORM_LABELS.get(platform, platform.title())
+        label = f"{platform_label} · {job.get('hook_preview') or 'Post'}"
         with st.expander(label, expanded=False):
             published_at = job.get("completed_at") or job.get("created_at")
             if published_at:

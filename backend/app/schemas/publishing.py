@@ -2,7 +2,7 @@ from datetime import date, datetime
 
 from pydantic import BaseModel
 
-from app.models.content import CalendarItemStatus, Platform
+from app.models.content import CalendarItemStatus, Platform, PostType
 from app.models.publishing import AccountStatus, PublishingJobStatus
 from app.schemas.content import CalendarItemRead, GeneratedPostContent
 
@@ -55,6 +55,7 @@ class QueueItemRead(BaseModel):
     id: int
     company_id: int
     platform: Platform
+    post_type: PostType
     status: CalendarItemStatus
     hook_preview: str | None
     scheduled_date: date | None

@@ -5,6 +5,7 @@ python-multipart>=0.0.12
 
 # Database / ORM
 sqlmodel>=0.0.22
+psycopg2-binary>=2.9.9
 
 # Config & validation
 pydantic-settings>=2.6.0

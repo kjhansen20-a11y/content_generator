@@ -18,7 +18,7 @@ services:
       - key: JWT_SECRET
         generateValue: true
       - key: DATABASE_URL
-        value: sqlite:///./app.db
+        sync: false
       - key: APP_PUBLIC_URL
         sync: false
       - key: DASHBOARD_URL

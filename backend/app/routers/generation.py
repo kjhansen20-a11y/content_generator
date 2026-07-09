@@ -80,3 +80,13 @@ def remove_calendar_item(
     session: Annotated[Session, Depends(get_session)],
 ) -> None:
     delete_calendar_item(session, company.id, item_id)
+
+
+@router.post("/calendar/{item_id}/remove", status_code=204)
+def remove_calendar_item_post(
+    item_id: int,
+    company: Annotated[Company, Depends(get_current_company)],
+    _: Annotated[CompanyUser, Depends(require_company_editor)],
+    session: Annotated[Session, Depends(get_session)],
+) -> None:
+    delete_calendar_item(session, company.id, item_id)

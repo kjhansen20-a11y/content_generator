@@ -149,8 +149,8 @@ class ApiClient:
 
     def delete_calendar_item(self, token: str, company_id: int, item_id: int) -> None:
         self._request(
-            "DELETE",
-            f"/api/v1/companies/{company_id}/calendar/{item_id}",
+            "POST",
+            f"/api/v1/companies/{company_id}/calendar/{item_id}/remove",
             token=token,
         )
 

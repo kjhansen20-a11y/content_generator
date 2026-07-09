@@ -251,11 +251,12 @@ class ApiClient:
         filename: str,
         mime_type: str,
         kind: str = "knowledge",
+        knowledge_source: str = "upload",
     ) -> dict[str, Any]:
         headers = {"Authorization": f"Bearer {token}"}
         response = requests.post(
             f"{self.base_url}/api/v1/companies/{company_id}/files",
-            params={"kind": kind},
+            params={"kind": kind, "knowledge_source": knowledge_source},
             files={"file": (filename, file_bytes, mime_type)},
             headers=headers,
             timeout=60,

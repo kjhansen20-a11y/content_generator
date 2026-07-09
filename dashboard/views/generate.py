@@ -10,12 +10,47 @@ from components.posting_time_guide import render_posting_time_guide
 
 PUBLISH_PLATFORMS = ["linkedin", "facebook"]
 PLATFORM_LABELS = {"linkedin": "LinkedIn", "facebook": "Facebook"}
+WEEKDAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
 
 GEN_MODE_LABELS = {
     "instant": "Instant post",
     "manual": "Schedule — pick date & time",
     "follow_plan": "Follow marketing plan",
 }
+
+POST_LANGUAGE_OPTIONS = {
+    "auto": "Auto-detect",
+    "da": "Danish",
+    "en": "English",
+    "de": "German",
+    "fr": "French",
+    "es": "Spanish",
+    "sv": "Swedish",
+    "no": "Norwegian",
+    "nl": "Dutch",
+    "it": "Italian",
+    "pt": "Portuguese",
+    "pl": "Polish",
+    "fi": "Finnish",
+}
+
+_GEN_FORM_KEYS = (
+    "last_generated_id",
+    "edit_generated",
+    "last_slot_label",
+    "last_schedule_label",
+    "show_next_week_offer",
+    "pending_next_week_generate",
+    "gen_mode",
+    "gen_sched_date",
+    "gen_sched_time",
+)
+
+
+def _start_new_post() -> None:
+    for key in _GEN_FORM_KEYS:
+        st.session_state.pop(key, None)
+    st.session_state["gen_reset_nonce"] = st.session_state.get("gen_reset_nonce", 0) + 1
 
 
 def render_generate_post(client: ApiClient, token: str, company_id: int, can_edit: bool) -> None:
@@ -27,6 +62,10 @@ def render_generate_post(client: ApiClient, token: str, company_id: int, can_edi
     if not can_edit:
         st.info("You have read-only access. Generation requires editor permissions.")
         return
+
+    if "gen_reset_nonce" not in st.session_state:
+        st.session_state.gen_reset_nonce = 0
+    form_nonce = st.session_state.gen_reset_nonce
 
     use_next_week = False
     trigger = False
@@ -73,6 +112,7 @@ def render_generate_post(client: ApiClient, token: str, company_id: int, can_edi
                     else "Personal / Founder → Your profile"
                 ),
                 help="For LinkedIn: professional posts publish to your Company Page; personal posts publish from your profile.",
+                key=f"gen_post_type_{form_nonce}",
             )
         with col2:
             platform = st.selectbox(
@@ -80,6 +120,7 @@ def render_generate_post(client: ApiClient, token: str, company_id: int, can_edi
                 options=PUBLISH_PLATFORMS,
                 format_func=lambda x: PLATFORM_LABELS[x],
                 help="This post will be published to the platform you choose when you queue it.",
+                key=f"gen_platform_{form_nonce}",
             )
 
         st.info(f"This post will publish to **{PLATFORM_LABELS[platform]}** when you queue and publish it.")
@@ -94,20 +135,30 @@ def render_generate_post(client: ApiClient, token: str, company_id: int, can_edi
                 "Scheduled time", value=time(9, 0), key="gen_sched_time"
             )
 
-    content_idea = st.text_area(
-        "Content idea (optional)",
-        placeholder="Leave empty for AI to decide based on context — or add a specific angle.",
-        height=80,
+    output_language = st.selectbox(
+        "Post language",
+        options=list(POST_LANGUAGE_OPTIONS.keys()),
+        format_func=lambda code: POST_LANGUAGE_OPTIONS[code],
+        key=f"gen_output_language_{form_nonce}",
     )
-    keywords = st.text_input("Keywords (optional)")
+
+    content_idea = st.text_area(
+        "Content idea",
+        placeholder="What should this post be about?",
+        height=80,
+        key=f"gen_content_idea_{form_nonce}",
+    )
+    keywords = st.text_input("Keywords (optional)", key=f"gen_keywords_{form_nonce}")
     uploaded_image = st.file_uploader(
         "Post image",
         type=["png", "jpg", "jpeg", "webp", "gif"],
         help="Upload the image to publish with this post.",
+        key=f"gen_image_upload_{form_nonce}",
     )
     image_description = st.text_input(
         "Image description (optional)",
         placeholder="Describe the image for accessibility and AI context",
+        key=f"gen_image_desc_{form_nonce}",
     )
 
     if not trigger:
@@ -125,6 +176,7 @@ def render_generate_post(client: ApiClient, token: str, company_id: int, can_edi
                 content_idea=content_idea,
                 keywords=keywords,
                 image_description=image_description,
+                output_language=output_language,
                 scheduled_date_value=scheduled_date_value,
                 scheduled_time_value=scheduled_time_value,
                 use_next_week=use_next_week,
@@ -178,6 +230,7 @@ def _build_payload(
     content_idea: str,
     keywords: str,
     image_description: str,
+    output_language: str,
     scheduled_date_value: date | None,
     scheduled_time_value: time | None,
     use_next_week: bool,
@@ -187,6 +240,7 @@ def _build_payload(
         "keywords": keywords.strip() or None,
         "image_description": image_description.strip() or None,
         "content_idea": idea,
+        "output_language": output_language,
     }
     if gen_mode == "instant":
         base.update({"mode": "instant", "post_type": post_type, "platform": platform})
@@ -372,10 +426,12 @@ def _render_last_generated(client: ApiClient, token: str, company_id: int) -> No
     else:
         col_edit.caption(f"Status: {item['status']}")
 
-    if col_new.button("Start new post", key="clear_generated_btn", use_container_width=True):
-        st.session_state.pop("last_generated_id", None)
-        st.session_state.pop("edit_generated", None)
-        st.rerun()
+    col_new.button(
+        "Start new post",
+        key="clear_generated_btn",
+        use_container_width=True,
+        on_click=_start_new_post,
+    )
 
 
 def _schedule_caption(item: dict) -> str:

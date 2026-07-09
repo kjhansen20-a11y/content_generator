@@ -32,6 +32,7 @@ class GeneratePostRequest(BaseModel):
     image_file_id: int | None = None
     image_description: str | None = Field(default=None, max_length=2000)
     keywords: str | None = Field(default=None, max_length=1000)
+    output_language: str = Field(default="auto", max_length=10)
     scheduled_date: date | None = None
     scheduled_time: str | None = Field(default=None, max_length=5)
     use_next_week: bool = False

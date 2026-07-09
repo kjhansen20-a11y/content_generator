@@ -55,10 +55,11 @@ async def upload_file(
     session: Annotated[Session, Depends(get_session)],
     file: UploadFile = File(...),
     kind: FileKind = Query(default=FileKind.knowledge),
+    knowledge_source: str = Query(default="upload", max_length=128),
 ) -> UploadedFileRead:
     record = await save_upload(session, company.id, file, kind)
     if kind == FileKind.knowledge:
-        create_knowledge_from_upload(session, record)
+        create_knowledge_from_upload(session, record, source=knowledge_source)
     return UploadedFileRead.model_validate(record)
 
 

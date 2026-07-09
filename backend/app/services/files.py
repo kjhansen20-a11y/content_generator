@@ -110,7 +110,12 @@ def extract_text_from_file(record: UploadedFile) -> str | None:
         return None
 
 
-def create_knowledge_from_upload(session: Session, record: UploadedFile) -> CompanyKnowledge | None:
+def create_knowledge_from_upload(
+    session: Session,
+    record: UploadedFile,
+    *,
+    source: str = "upload",
+) -> CompanyKnowledge | None:
     extracted = extract_text_from_file(record)
     if not extracted:
         return None
@@ -118,7 +123,7 @@ def create_knowledge_from_upload(session: Session, record: UploadedFile) -> Comp
         company_id=record.company_id,
         title=record.original_filename,
         content=extracted,
-        source="upload",
+        source=source,
         uploaded_file_id=record.id,
     )
     session.add(entry)

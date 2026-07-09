@@ -27,6 +27,12 @@ from app.schemas.content import (
 )
 from app.services.files import get_uploaded_file
 from app.services.openai_client import chat_json
+from app.services.post_language import (
+    build_language_preservation_instruction,
+    build_post_language_instruction,
+    resolve_output_language,
+    user_language_source,
+)
 from app.services.prompt_builder import (
     ResolvedPostContext,
     build_brief_user_prompt,
@@ -120,6 +126,8 @@ def _resolve_generation(
     request: GeneratePostRequest,
 ) -> tuple[ResolvedPostContext, Platform, PostType, date | None, str | None, int | None, int | None, str | None]:
     """Returns context, platform, post_type, scheduled_date iso, scheduled_time, rule_id, pillar_id, slot_label."""
+    language_source = user_language_source(request.content_idea, request.keywords)
+    output_language = resolve_output_language(request.output_language, language_source)
     if request.mode == GenerateMode.instant:
         assert request.platform and request.post_type
         idea = (request.content_idea or "").strip() or "Create an engaging on-brand post for this company."
@@ -128,6 +136,8 @@ def _resolve_generation(
             post_type=request.post_type,
             content_idea=idea,
             include_planning=False,
+            language_source=language_source,
+            output_language=output_language,
         )
         return ctx, request.platform, request.post_type, None, None, None, None, None
 
@@ -139,6 +149,8 @@ def _resolve_generation(
             post_type=request.post_type,
             content_idea=idea,
             include_planning=False,
+            language_source=language_source,
+            output_language=output_language,
         )
         sched_time = request.scheduled_time
         return (
@@ -173,6 +185,8 @@ def _resolve_generation(
         post_type=slot.post_type,
         content_idea=idea,
         include_planning=True,
+        language_source=language_source,
+        output_language=output_language,
         pillar_name=slot.pillar_name,
         pillar_description=pillar_desc,
         slot_label=label,
@@ -239,7 +253,10 @@ def generate_post(
     brief = _run_brief(session, company, ctx)
     ctx.content_idea = brief
 
-    system_prompt = build_system_prompt(session, post_type, platform)
+    language_instruction = build_post_language_instruction(ctx.output_language, ctx.language_source)
+    preserve_language = build_language_preservation_instruction(ctx.output_language)
+
+    system_prompt = language_instruction + "\n\n" + build_system_prompt(session, post_type, platform)
     user_prompt = build_user_prompt(session, company, request, ctx)
     base_version_id = get_active_prompt_version_id(session, "base")
 
@@ -258,7 +275,7 @@ def generate_post(
         company_id=company.id,
         operation="quality_check",
         system_prompt=quality_system,
-        user_prompt=json.dumps(draft_result.content, ensure_ascii=False),
+        user_prompt=preserve_language + "\n\n" + json.dumps(draft_result.content, ensure_ascii=False),
     )
     reviewed = _parse_content(quality_result.content)
 
@@ -274,7 +291,7 @@ def generate_post(
             company_id=company.id,
             operation="post_revise",
             system_prompt=revise_system,
-            user_prompt=json.dumps(revise_payload, ensure_ascii=False),
+            user_prompt=preserve_language + "\n\n" + json.dumps(revise_payload, ensure_ascii=False),
         )
         revised = _parse_content(revise_result.content)
         if revised.hook and revised.body:

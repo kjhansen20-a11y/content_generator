@@ -3,6 +3,8 @@ from sqlmodel import Session, select
 from app.models.knowledge import CompanyKnowledge
 from app.schemas.knowledge import KnowledgeCreate, KnowledgeRead
 
+PREVIOUS_POST_SOURCE = "previous_post"
+
 
 def list_knowledge(session: Session, company_id: int) -> list[KnowledgeRead]:
     rows = session.exec(
@@ -18,7 +20,7 @@ def create_knowledge(session: Session, company_id: int, payload: KnowledgeCreate
         company_id=company_id,
         title=payload.title.strip(),
         content=payload.content.strip(),
-        source="manual",
+        source=(payload.source or "manual").strip() or "manual",
     )
     session.add(entry)
     session.commit()
@@ -50,7 +52,10 @@ def retrieve_knowledge_context(
     entries = list(
         session.exec(
             select(CompanyKnowledge)
-            .where(CompanyKnowledge.company_id == company_id)
+            .where(
+                CompanyKnowledge.company_id == company_id,
+                CompanyKnowledge.source != PREVIOUS_POST_SOURCE,
+            )
             .order_by(CompanyKnowledge.created_at.desc())
         ).all()
     )
@@ -72,6 +77,34 @@ def retrieve_knowledge_context(
     parts: list[str] = []
     total = 0
     for entry in ordered:
+        chunk = f"### {entry.title}\n{entry.content.strip()}"
+        if total + len(chunk) > max_chars:
+            remaining = max_chars - total
+            if remaining > 100:
+                parts.append(chunk[:remaining] + "…")
+            break
+        parts.append(chunk)
+        total += len(chunk)
+    return "\n\n".join(parts) if parts else None
+
+
+def tone_examples_context_block(session: Session, company_id: int, max_chars: int = 6000) -> str | None:
+    entries = list(
+        session.exec(
+            select(CompanyKnowledge)
+            .where(
+                CompanyKnowledge.company_id == company_id,
+                CompanyKnowledge.source == PREVIOUS_POST_SOURCE,
+            )
+            .order_by(CompanyKnowledge.created_at.desc())
+        ).all()
+    )
+    if not entries:
+        return None
+
+    parts: list[str] = []
+    total = 0
+    for entry in entries:
         chunk = f"### {entry.title}\n{entry.content.strip()}"
         if total + len(chunk) > max_chars:
             remaining = max_chars - total

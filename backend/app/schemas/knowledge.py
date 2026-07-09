@@ -8,6 +8,7 @@ from app.models.knowledge import FileKind
 class KnowledgeCreate(BaseModel):
     title: str = Field(min_length=1, max_length=255)
     content: str = Field(min_length=1, max_length=50000)
+    source: str = Field(default="manual", max_length=128)
 
 
 class KnowledgeRead(BaseModel):

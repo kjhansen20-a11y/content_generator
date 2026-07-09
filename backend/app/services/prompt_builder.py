@@ -7,7 +7,8 @@ from app.models.profile import BrandProfile, CompanyProfile
 from app.models.tenancy import Company
 from app.schemas.content import GeneratePostRequest
 from app.services.files import get_uploaded_file
-from app.services.knowledge import retrieve_knowledge_context
+from app.services.knowledge import retrieve_knowledge_context, tone_examples_context_block
+from app.services.post_language import build_post_language_instruction, detect_output_language
 
 
 POST_TYPE_KEYS = {
@@ -28,6 +29,8 @@ class ResolvedPostContext:
     post_type: PostType
     content_idea: str
     include_planning: bool
+    language_source: str = ""
+    output_language: str = "English"
     pillar_name: str | None = None
     pillar_description: str | None = None
     slot_label: str | None = None
@@ -89,6 +92,7 @@ def build_brief_user_prompt(session: Session, company: Company, ctx: ResolvedPos
         f"Platform: {ctx.platform.value}. Post type: {ctx.post_type.value}. "
         "Write a creative brief for one social post."
     )
+    sections.append(build_post_language_instruction(ctx.output_language, ctx.language_source))
     return "\n\n".join(sections)
 
 
@@ -132,6 +136,7 @@ def build_user_prompt(
         "Write one post draft. Return JSON matching the required schema. "
         f'Set platform to "{ctx.platform.value}" and post_type to "{ctx.post_type.value}".'
     )
+    sections.append(build_post_language_instruction(ctx.output_language, ctx.language_source))
     return "\n\n".join(sections)
 
 
@@ -172,6 +177,13 @@ def _company_brand_sections(
             sections.append(f"Don't use: {brand_profile.dont_use}")
         if brand_profile.brand_keywords:
             sections.append(f"Brand keywords: {brand_profile.brand_keywords}")
+
+    tone_examples = tone_examples_context_block(session, company.id)
+    if tone_examples:
+        sections.append(
+            "Previous posts (match this voice, tone, and style when writing new posts):\n"
+            + tone_examples
+        )
 
     query_parts = [ctx.content_idea or "", ctx.pillar_name or "", ctx.pillar_description or ""]
     knowledge = retrieve_knowledge_context(

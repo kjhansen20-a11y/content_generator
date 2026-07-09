@@ -3,7 +3,7 @@ from sqlmodel import Session, select
 from app.models.profile import BrandProfile, CompanyProfile
 from app.models.tenancy import Company
 from app.schemas.planning import GenerateMarketingPlanRequest
-from app.services.knowledge import knowledge_context_block
+from app.services.knowledge import knowledge_context_block, tone_examples_context_block
 from app.services.optimal_posting_times import optimal_posting_guidance_block
 from app.services.prompt_builder import get_active_prompt_body
 
@@ -41,6 +41,10 @@ def build_marketing_plan_user(
             sections.append(f"Tone of voice: {brand_profile.tone_of_voice}")
         if brand_profile.brand_voice_description:
             sections.append(f"Brand voice: {brand_profile.brand_voice_description}")
+
+    tone_examples = tone_examples_context_block(session, company.id)
+    if tone_examples:
+        sections.append(f"Previous posts (tone reference):\n{tone_examples}")
 
     knowledge = knowledge_context_block(session, company.id)
     if knowledge:
@@ -95,6 +99,10 @@ def build_marketing_plan_import_user(
         sections.append(f"Industry: {company_profile.industry}")
     if brand_profile and brand_profile.tone_of_voice:
         sections.append(f"Tone of voice: {brand_profile.tone_of_voice}")
+
+    tone_examples = tone_examples_context_block(session, company.id)
+    if tone_examples:
+        sections.append(f"Previous posts (tone reference):\n{tone_examples}")
 
     knowledge = knowledge_context_block(session, company.id)
     if knowledge:

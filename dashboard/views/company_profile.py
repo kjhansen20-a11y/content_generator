@@ -3,6 +3,7 @@ import streamlit as st
 from api_client import ApiClient, ApiError
 from components.layout import page_header
 from views.knowledge import render_knowledge_base
+from views.previous_posts_tone import render_previous_posts_tone
 
 
 def render_company_profile(client: ApiClient, token: str, company_id: int, can_edit: bool) -> None:
@@ -52,6 +53,9 @@ def render_company_profile(client: ApiClient, token: str, company_id: int, can_e
                 st.rerun()
             except ApiError as exc:
                 st.error(str(exc))
+
+        st.divider()
+        render_previous_posts_tone(client, token, company_id, can_edit, key_prefix="company")
 
     with tab_knowledge:
         render_knowledge_base(client, token, company_id, can_edit)

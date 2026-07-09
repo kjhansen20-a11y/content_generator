@@ -247,11 +247,7 @@ def _publish_to_linkedin(
     content = _parse_content(json.loads(post.content_json))
     access_token = _account_access_token(account, platform=Platform.linkedin)
     image_bytes, image_mime = _load_post_image(session, company_id, post)
-    if post.image_file_id and not image_bytes:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Post image file is missing on the server. Re-generate the post with a new image.",
-        )
+    image_missing = bool(post.image_file_id and not image_bytes)
 
     try:
         external_id = linkedin_publish.publish_post(
@@ -268,7 +264,10 @@ def _publish_to_linkedin(
             detail=str(exc),
         ) from exc
 
-    return external_id, f"Published to LinkedIn ({account.account_name})"
+    message = f"Published to LinkedIn ({account.account_name})"
+    if image_missing:
+        message += " (text only — image file was missing on the server)"
+    return external_id, message
 
 
 def _publish_to_facebook(
@@ -287,11 +286,7 @@ def _publish_to_facebook(
     content = _parse_content(json.loads(post.content_json))
     page_token = _account_access_token(account, platform=Platform.facebook)
     image_bytes, image_mime = _load_post_image(session, company_id, post)
-    if post.image_file_id and not image_bytes:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Post image file is missing on the server. Re-generate the post with a new image.",
-        )
+    image_missing = bool(post.image_file_id and not image_bytes)
 
     try:
         external_id = facebook_publish.publish_post(
@@ -307,7 +302,10 @@ def _publish_to_facebook(
             detail=str(exc),
         ) from exc
 
-    return external_id, f"Published to Facebook Page {account.account_name}"
+    message = f"Published to Facebook Page {account.account_name}"
+    if image_missing:
+        message += " (text only — image file was missing on the server)"
+    return external_id, message
 
 
 def _run_platform_publish(

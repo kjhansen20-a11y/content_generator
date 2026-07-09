@@ -10,6 +10,7 @@ from app.models.content import (
     GeneratedPost,
     PostVersion,
 )
+from app.models.publishing import PublishingJob
 from app.schemas.content import CalendarItemContentUpdate, CalendarItemRead, GeneratedPostContent
 from app.services.generation import _parse_content, _to_calendar_item_read
 
@@ -116,6 +117,12 @@ def queue_calendar_item(session: Session, company_id: int, item_id: int) -> Cale
 def delete_calendar_item(session: Session, company_id: int, item_id: int) -> None:
     item, post = _get_item_with_post(session, company_id, item_id)
     _require_status(item, EDITABLE_STATUSES, "delete")
+
+    jobs = session.exec(
+        select(PublishingJob).where(PublishingJob.calendar_item_id == item.id)
+    ).all()
+    for job in jobs:
+        session.delete(job)
 
     versions = session.exec(
         select(PostVersion).where(PostVersion.generated_post_id == post.id)

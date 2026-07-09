@@ -131,6 +131,13 @@ def render_publishing_queue(
                     )
                 else:
                     st.error(f"Connect **{platform_label}** in Connections to publish this post.")
+            elif item.get("image_file_id") and not load_post_image(
+                client, token, company_id, item.get("image_file_id")
+            )[0]:
+                st.warning(
+                    "Image file is missing on the server. You can still publish as text-only, "
+                    "or delete this post and generate a new one with an image."
+                )
             st.subheader("Feed preview")
             _render_feed_preview(client, token, company_id, company_name, item)
 

@@ -12,7 +12,7 @@ import extra_streamlit_components as stx
 import streamlit as st
 
 from api_client import ApiClient, ApiError
-from components.layout import api_status_dot, auth_hero, inject_global_styles, sidebar_brand
+from components.layout import auth_hero, inject_global_styles
 from views.admin import render_admin_dashboard
 from views.brand_profile import render_brand_profile
 from views.company_profile import render_company_profile
@@ -38,8 +38,8 @@ def _default_api_base() -> str:
         return "http://127.0.0.1:8001"
 
 
-if "api_base" not in st.session_state:
-    st.session_state.api_base = _default_api_base()
+# Prefer env/secrets on each run so local POST_GENERATOR_API_URL overrides stale session state.
+st.session_state.api_base = _default_api_base()
 
 client = ApiClient(st.session_state.api_base)
 cookie_manager = stx.CookieManager(key="cookie_manager")
@@ -64,8 +64,11 @@ if "logged_out" not in st.session_state:
 
 def load_profile(token: str) -> None:
     profile = client.me(token)
+    previous_user_id = (st.session_state.user or {}).get("id")
     st.session_state.user = profile["user"]
     st.session_state.companies = profile.get("companies", [])
+    if previous_user_id != st.session_state.user.get("id"):
+        st.session_state.selected_company_id = None
     if st.session_state.companies and st.session_state.selected_company_id is None:
         st.session_state.selected_company_id = st.session_state.companies[0]["id"]
 
@@ -74,8 +77,13 @@ def set_session(token: str) -> None:
     st.session_state.logged_out = False
     st.session_state.block_cookie_login = False
     st.session_state.cookie_retries = 0
+    st.session_state.cookies_ready = False
+    st.session_state.pop("cookie_sync_phase", None)
     st.session_state.token = token
-    cookie_manager.set(TOKEN_COOKIE, token, key="set_token")
+    st.session_state.user = None
+    st.session_state.companies = []
+    st.session_state.selected_company_id = None
+    st.session_state.pop("company_select", None)
 
 
 def _perform_logout() -> None:
@@ -89,16 +97,68 @@ def _perform_logout() -> None:
     st.session_state.page = "Home"
     st.session_state.pop("company_select", None)
     st.session_state.pop("nav_pending", None)
+    st.session_state.pop("cookie_sync_phase", None)
     cookie_manager.delete(TOKEN_COOKIE, key="delete_token")
+
+
+def _wait_for_cookies(cookies: dict) -> None:
+    """CookieManager returns {} until the browser component hydrates."""
+    if cookies:
+        st.session_state.cookies_ready = True
+        return
+    if st.session_state.get("cookies_ready"):
+        return
+    retries = st.session_state.get("cookie_retries", 0)
+    if retries < 3:
+        st.session_state.cookie_retries = retries + 1
+        time.sleep(0.3)
+        st.rerun()
+    st.session_state.cookies_ready = True
+
+
+def _clear_auth_cookie() -> None:
+    if cookies.get(TOKEN_COOKIE):
+        cookie_manager.delete(TOKEN_COOKIE, key="delete_token")
+        st.rerun()
+
+
+def _ensure_auth_cookie() -> None:
+    """Keep browser cookie aligned with session token (delete requires a rerun before set)."""
+    token = st.session_state.token
+    if not token:
+        st.session_state.pop("cookie_sync_phase", None)
+        return
+
+    cookie_token = cookies.get(TOKEN_COOKIE)
+    if cookie_token == token:
+        st.session_state.pop("cookie_sync_phase", None)
+        return
+
+    phase = st.session_state.get("cookie_sync_phase")
+    if phase == "await_set":
+        cookie_manager.set(TOKEN_COOKIE, token, key="set_token")
+        st.session_state.pop("cookie_sync_phase", None)
+        return
+
+    if cookie_token and cookie_token != token:
+        cookie_manager.delete(TOKEN_COOKIE, key="clear_token_before_set")
+        st.session_state["cookie_sync_phase"] = "await_set"
+        st.rerun()
+
+    cookie_manager.set(TOKEN_COOKIE, token, key="set_token")
 
 
 if st.session_state.pop("logout_requested", False):
     _perform_logout()
     st.rerun()
 
-cookies: dict = {}
-if st.session_state.logged_out or st.session_state.block_cookie_login or not st.session_state.token:
-    cookies = cookie_manager.get_all(key="cookies_get_all")
+cookies = cookie_manager.get_all(key="cookies_get_all")
+_wait_for_cookies(cookies)
+
+if st.session_state.logged_out or st.session_state.block_cookie_login:
+    _clear_auth_cookie()
+    if st.session_state.block_cookie_login:
+        st.session_state.block_cookie_login = False
 
 
 def request_logout() -> None:
@@ -146,15 +206,11 @@ if not st.session_state.token and not st.session_state.logged_out and not st.ses
             st.session_state.token = saved_token
         except ApiError:
             cookie_manager.delete(TOKEN_COOKIE, key="delete_stale_token")
-    elif not cookies and st.session_state.get("cookie_retries", 0) < 3:
-        # On a fresh page load the cookie component hasn't hydrated yet and
-        # returns an empty dict; give it a moment before assuming logged out.
-        st.session_state.cookie_retries = st.session_state.get("cookie_retries", 0) + 1
-        time.sleep(0.3)
-        st.rerun()
 
-if st.session_state.block_cookie_login and not cookies.get(TOKEN_COOKIE):
-    st.session_state.block_cookie_login = False
+if st.session_state.token:
+    _ensure_auth_cookie()
+    if st.session_state.user is None:
+        load_profile(st.session_state.token)
 
 try:
     health = client.health()
@@ -164,26 +220,18 @@ except ApiError:
 
 if st.session_state.token:
     if api_ok != "ok":
-        st.error(f"Cannot reach API at {st.session_state.api_base}. Check Settings in the sidebar.")
+        st.error(f"Cannot reach API at {st.session_state.api_base}. Start the backend first.")
         st.stop()
-
-    sidebar_brand()
 
     with st.sidebar.expander("Account", expanded=False):
         st.caption(st.session_state.user["email"])
+        if st.session_state.companies:
+            st.caption(st.session_state.companies[0]["name"])
         if st.session_state.user.get("is_platform_admin"):
             st.caption("Platform admin")
 
     if st.session_state.companies:
-        company_options = {c["name"]: c["id"] for c in st.session_state.companies}
-        default_name = next(
-            (c["name"] for c in st.session_state.companies if c["id"] == st.session_state.selected_company_id),
-            list(company_options.keys())[0],
-        )
-        if "company_select" not in st.session_state or st.session_state.company_select not in company_options:
-            st.session_state.company_select = default_name
-        st.sidebar.selectbox("Company", options=list(company_options.keys()), key="company_select")
-        st.session_state.selected_company_id = company_options[st.session_state.company_select]
+        st.session_state.selected_company_id = st.session_state.companies[0]["id"]
 
         st.sidebar.divider()
         nav_options = [
@@ -209,13 +257,6 @@ if st.session_state.token:
 
     st.sidebar.divider()
     st.sidebar.button("Log out", key="logout_button", use_container_width=True, on_click=request_logout)
-
-    with st.sidebar.expander("Settings", expanded=False):
-        api_base = st.text_input("API base URL", value=st.session_state.api_base, key="api_base_input")
-        if api_base != st.session_state.api_base:
-            st.session_state.api_base = api_base.rstrip("/")
-            st.rerun()
-        api_status_dot(api_ok)
 
     company = selected_company()
 

@@ -48,22 +48,19 @@ def render_marketing_plan(client: ApiClient, token: str, company_id: int, can_ed
         return
 
     tab_build, tab_overview, tab_pillars, tab_schedule = st.tabs(
-        ["AI builder", "Overview", "Pillars", "Schedule"]
+        ["Build plan", "Overview", "Pillars", "Schedule"]
     )
 
     with tab_build:
-        _render_ai_builder(client, token, company_id, can_edit)
-        if can_edit:
-            st.divider()
-            _render_manual_options(client, token, company_id, expanded=False)
+        _render_plan_creator(client, token, company_id, can_edit)
 
     with tab_overview:
         if active_plan:
             render_plan_visual(active_plan, pillars, rules)
         else:
-            st.warning("No active plan. Activate a plan or build a new one with AI.")
+            st.warning("No active plan. Activate a plan or build a new one.")
             if plans:
-                st.caption("Go to the AI builder tab or activate a plan from manual options below.")
+                st.caption("Go to the Build plan tab to create one with AI or upload a document.")
                 _render_plan_list(client, token, company_id, can_edit, plans, None)
 
     with tab_pillars:
@@ -76,15 +73,24 @@ def render_marketing_plan(client: ApiClient, token: str, company_id: int, can_ed
 def _render_get_started(client: ApiClient, token: str, company_id: int, can_edit: bool) -> None:
     st.markdown("### Get started")
     st.caption(
-        "Enter keywords and/or describe your expectations. AI will draft goals, content pillars, "
-        "and a weekly posting schedule using your company profile and knowledge base."
+        "Build a plan with AI from your expectations and keywords, or upload an existing marketing plan document."
     )
     if can_edit:
-        _render_ai_builder(client, token, company_id, can_edit, expanded=True)
-        st.divider()
-        _render_manual_options(client, token, company_id, expanded=True)
+        _render_plan_creator(client, token, company_id, can_edit)
     else:
         st.info("You have read-only access.")
+
+
+def _render_plan_creator(client: ApiClient, token: str, company_id: int, can_edit: bool) -> None:
+    if not can_edit:
+        st.info("You have read-only access.")
+        return
+
+    tab_ai, tab_upload = st.tabs(["Build with AI", "Upload marketing plan"])
+    with tab_ai:
+        _render_ai_builder(client, token, company_id, can_edit)
+    with tab_upload:
+        _render_upload_plan(client, token, company_id)
 
 
 def _render_ai_builder(
@@ -92,164 +98,133 @@ def _render_ai_builder(
     token: str,
     company_id: int,
     can_edit: bool,
-    expanded: bool = True,
 ) -> None:
     if not can_edit:
         st.info("You have read-only access.")
         return
 
-    container = st.container(border=True)
-    with container:
-        st.markdown("#### Build with AI")
-        st.caption("Powered by your company profile, brand voice, knowledge base, and the marketing_plan prompt.")
+    st.caption("Powered by your company profile, brand voice, knowledge base, and the marketing_plan prompt.")
 
-        with st.form("ai_plan_form"):
-            plan_expectations = st.text_area(
-                "Plan expectations & direction",
-                placeholder=(
-                    "e.g. KJSolutions marketing plan will help a fresh start-up market their new "
-                    "platform selling social media automatic post generation SaaS."
-                ),
-                height=120,
-                help="Describe your goals, context, and strategic direction for this plan.",
-            )
-            keywords = st.text_area(
-                "Keywords & themes (optional)",
-                placeholder="e.g. B2B SaaS, product launches, thought leadership, customer success",
-                height=80,
-            )
-            focus_areas = st.text_input(
-                "Focus areas (optional)",
-                placeholder="e.g. lead generation, employer branding",
-            )
-            platforms = st.multiselect(
-                "Platforms",
-                PLATFORM_OPTIONS,
-                default=["linkedin"],
-                format_func=lambda p: p.title(),
-            )
-            col1, col2, col3 = st.columns(3)
-            with col1:
-                plan_name = st.text_input("Plan name (optional)", placeholder="AI will suggest if empty")
-            with col2:
-                period_weeks = st.number_input("Planning horizon (weeks)", min_value=1, max_value=52, value=12)
-            with col3:
-                posts_per_week = st.number_input("Posts per week", min_value=1, max_value=21, value=3)
-            st.caption(
-                "Posting times are set using platform engagement research (e.g. LinkedIn peak: "
-                "Tue–Thu mornings). Regenerate to refresh an existing schedule."
-            )
-            replace = st.checkbox(
-                "Replace existing pillars & schedule",
-                value=True,
-                help="When checked, regenerating clears current pillars and posting rules.",
-            )
-            submitted = st.form_submit_button("Generate marketing plan", type="primary", use_container_width=True)
+    with st.form("ai_plan_form"):
+        plan_expectations = st.text_area(
+            "Plan expectations & direction",
+            placeholder=(
+                "e.g. KJSolutions marketing plan will help a fresh start-up market their new "
+                "platform selling social media automatic post generation SaaS."
+            ),
+            height=120,
+            help="Describe your goals, context, and strategic direction for this plan.",
+        )
+        keywords = st.text_area(
+            "Keywords & themes (optional)",
+            placeholder="e.g. B2B SaaS, product launches, thought leadership, customer success",
+            height=80,
+        )
+        focus_areas = st.text_input(
+            "Focus areas (optional)",
+            placeholder="e.g. lead generation, employer branding",
+        )
+        platforms = st.multiselect(
+            "Platforms",
+            PLATFORM_OPTIONS,
+            default=["linkedin"],
+            format_func=lambda p: p.title(),
+        )
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            plan_name = st.text_input("Plan name (optional)", placeholder="AI will suggest if empty")
+        with col2:
+            period_weeks = st.number_input("Planning horizon (weeks)", min_value=1, max_value=52, value=12)
+        with col3:
+            posts_per_week = st.number_input("Posts per week", min_value=1, max_value=21, value=3)
+        st.caption(
+            "Posting times are set using platform engagement research (e.g. LinkedIn peak: "
+            "Tue–Thu mornings). Regenerate to refresh an existing schedule."
+        )
+        replace = st.checkbox(
+            "Replace existing pillars & schedule",
+            value=True,
+            help="When checked, regenerating clears current pillars and posting rules.",
+        )
+        submitted = st.form_submit_button("Generate marketing plan", type="primary", use_container_width=True)
 
-        if submitted:
-            if not plan_expectations.strip() and not keywords.strip():
-                st.error("Provide plan expectations or keywords/themes.")
-            elif not platforms:
-                st.error("Select at least one platform.")
+    if submitted:
+        if not plan_expectations.strip() and not keywords.strip():
+            st.error("Provide plan expectations or keywords/themes.")
+        elif not platforms:
+            st.error("Select at least one platform.")
+        else:
+            with st.spinner("Designing your marketing plan with AI…"):
+                try:
+                    result = client.generate_marketing_plan(
+                        token,
+                        company_id,
+                        {
+                            "plan_expectations": plan_expectations.strip() or None,
+                            "keywords": keywords.strip(),
+                            "focus_areas": focus_areas.strip() or None,
+                            "platforms": platforms,
+                            "plan_name": plan_name.strip() or None,
+                            "period_weeks": int(period_weeks),
+                            "posts_per_week": int(posts_per_week),
+                            "replace_existing": replace,
+                        },
+                    )
+                    st.success(
+                        f"Created **{result['plan']['name']}** with "
+                        f"{len(result['pillars'])} pillars and "
+                        f"{len(result['posting_rules'])} posting rules."
+                    )
+                    st.rerun()
+                except ApiError as exc:
+                    st.error(str(exc))
+
+
+def _render_upload_plan(client: ApiClient, token: str, company_id: int) -> None:
+    st.caption(
+        "Upload a marketing plan (.txt, .md, .csv, or .pdf). "
+        "AI will extract goals, pillars, and posting schedule."
+    )
+    with st.form("plan_upload_form", clear_on_submit=True):
+        uploaded = st.file_uploader(
+            "Plan file",
+            key="plan_upload_file",
+            help="PDF must contain selectable text (not scanned images).",
+        )
+        upload_name = st.text_input(
+            "Plan name (optional)",
+            placeholder="Defaults to name from document",
+            key="plan_upload_name",
+        )
+        replace_existing = st.checkbox("Replace existing pillars & schedule", value=True)
+        submitted = st.form_submit_button("Upload & activate", type="primary", use_container_width=True)
+    if submitted:
+        if uploaded is None:
+            st.error("Choose a file to upload.")
+        else:
+            ext = uploaded.name.rsplit(".", 1)[-1].lower() if "." in uploaded.name else ""
+            if ext not in PLAN_UPLOAD_EXTENSIONS:
+                st.error(f"Unsupported file type. Use: {', '.join(PLAN_UPLOAD_EXTENSIONS)}")
             else:
-                with st.spinner("Designing your marketing plan with AI…"):
+                with st.spinner("Extracting and structuring your plan…"):
                     try:
-                        result = client.generate_marketing_plan(
+                        result = client.import_marketing_plan(
                             token,
                             company_id,
-                            {
-                                "plan_expectations": plan_expectations.strip() or None,
-                                "keywords": keywords.strip(),
-                                "focus_areas": focus_areas.strip() or None,
-                                "platforms": platforms,
-                                "plan_name": plan_name.strip() or None,
-                                "period_weeks": int(period_weeks),
-                                "posts_per_week": int(posts_per_week),
-                                "replace_existing": replace,
-                            },
+                            uploaded.getvalue(),
+                            uploaded.name,
+                            uploaded.type or "application/octet-stream",
+                            plan_name=upload_name.strip() or None,
+                            replace_existing=replace_existing,
                         )
                         st.success(
-                            f"Created **{result['plan']['name']}** with "
+                            f"Imported **{result['plan']['name']}** with "
                             f"{len(result['pillars'])} pillars and "
                             f"{len(result['posting_rules'])} posting rules."
                         )
                         st.rerun()
                     except ApiError as exc:
                         st.error(str(exc))
-
-
-def _render_manual_options(
-    client: ApiClient,
-    token: str,
-    company_id: int,
-    expanded: bool,
-) -> None:
-    label = "Manual create or upload"
-    section = st.expander(label, expanded=expanded) if not expanded else st.container()
-    with section:
-        col_create, col_upload = st.columns(2)
-        with col_create:
-            st.markdown("##### Create manually")
-            with st.form("manual_plan_form"):
-                name = st.text_input("Plan name", key="manual_plan_name")
-                goals = st.text_area("Goals", key="manual_plan_goals", height=100)
-                create = st.form_submit_button("Create & activate")
-            if create and name.strip():
-                try:
-                    plan = client.create_marketing_plan(
-                        token, company_id, {"name": name.strip(), "goals": goals.strip() or None}
-                    )
-                    client.update_marketing_plan(token, company_id, plan["id"], {"status": "active"})
-                    st.success("Plan created.")
-                    st.rerun()
-                except ApiError as exc:
-                    st.error(str(exc))
-        with col_upload:
-            st.markdown("##### Upload document")
-            st.caption(
-                "Upload a marketing plan (.txt, .md, .csv, or .pdf). "
-                "AI will extract goals, pillars, and posting schedule."
-            )
-            with st.form("manual_plan_upload_form", clear_on_submit=True):
-                uploaded = st.file_uploader(
-                    "Plan file",
-                    key="manual_plan_upload",
-                    help="PDF must contain selectable text (not scanned images).",
-                )
-                upload_name = st.text_input(
-                    "Plan name (optional)",
-                    placeholder="Defaults to name from document",
-                    key="manual_upload_name",
-                )
-                replace_existing = st.checkbox("Replace existing pillars & schedule", value=True)
-                submitted = st.form_submit_button("Upload & activate", type="primary")
-            if submitted:
-                if uploaded is None:
-                    st.error("Choose a file to upload.")
-                else:
-                    ext = uploaded.name.rsplit(".", 1)[-1].lower() if "." in uploaded.name else ""
-                    if ext not in PLAN_UPLOAD_EXTENSIONS:
-                        st.error(f"Unsupported file type. Use: {', '.join(PLAN_UPLOAD_EXTENSIONS)}")
-                    else:
-                        with st.spinner("Extracting and structuring your plan…"):
-                            try:
-                                result = client.import_marketing_plan(
-                                    token,
-                                    company_id,
-                                    uploaded.getvalue(),
-                                    uploaded.name,
-                                    uploaded.type or "application/octet-stream",
-                                    plan_name=upload_name.strip() or None,
-                                    replace_existing=replace_existing,
-                                )
-                                st.success(
-                                    f"Imported **{result['plan']['name']}** with "
-                                    f"{len(result['pillars'])} pillars and "
-                                    f"{len(result['posting_rules'])} posting rules."
-                                )
-                                st.rerun()
-                            except ApiError as exc:
-                                st.error(str(exc))
 
 
 def _render_plan_list(
@@ -308,7 +283,7 @@ def _render_pillars_tab(
                         st.error(str(exc))
 
     if not pillars:
-        st.caption("No pillars yet — use AI builder or add manually.")
+        st.caption("No pillars yet — use Build with AI or upload a marketing plan.")
         return
 
     for pillar in pillars:
@@ -362,7 +337,7 @@ def _render_rules_tab(
                         st.error(str(exc))
 
     if not rules:
-        st.caption("No rules yet — use AI builder or add manually.")
+        st.caption("No rules yet — use Build with AI or upload a marketing plan.")
         return
 
     rows = [

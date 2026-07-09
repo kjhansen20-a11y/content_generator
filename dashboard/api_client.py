@@ -147,6 +147,13 @@ class ApiClient:
             token=token,
         )
 
+    def delete_calendar_item(self, token: str, company_id: int, item_id: int) -> None:
+        self._request(
+            "DELETE",
+            f"/api/v1/companies/{company_id}/calendar/{item_id}",
+            token=token,
+        )
+
     def list_publishing_queue(self, token: str, company_id: int) -> list[dict[str, Any]]:
         return self._request("GET", f"/api/v1/companies/{company_id}/publishing/queue", token=token)
 

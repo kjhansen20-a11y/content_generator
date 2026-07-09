@@ -13,6 +13,12 @@ from app.models.content import (
 from app.schemas.content import CalendarItemContentUpdate, CalendarItemRead, GeneratedPostContent
 from app.services.generation import _parse_content, _to_calendar_item_read
 
+EDITABLE_STATUSES = {
+    CalendarItemStatus.draft,
+    CalendarItemStatus.approved,
+    CalendarItemStatus.queued,
+}
+
 
 def _get_item_with_post(
     session: Session,
@@ -47,7 +53,7 @@ def update_calendar_item(
     payload: CalendarItemContentUpdate,
 ) -> CalendarItemRead:
     item, post = _get_item_with_post(session, company_id, item_id)
-    _require_status(item, {CalendarItemStatus.draft}, "edit")
+    _require_status(item, EDITABLE_STATUSES, "edit")
 
     session.add(
         PostVersion(
@@ -105,3 +111,18 @@ def queue_calendar_item(session: Session, company_id: int, item_id: int) -> Cale
     session.commit()
     session.refresh(item)
     return _to_calendar_item_read(item, post)
+
+
+def delete_calendar_item(session: Session, company_id: int, item_id: int) -> None:
+    item, post = _get_item_with_post(session, company_id, item_id)
+    _require_status(item, EDITABLE_STATUSES, "delete")
+
+    versions = session.exec(
+        select(PostVersion).where(PostVersion.generated_post_id == post.id)
+    ).all()
+    for version in versions:
+        session.delete(version)
+
+    session.delete(item)
+    session.delete(post)
+    session.commit()

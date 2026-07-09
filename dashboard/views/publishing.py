@@ -1,6 +1,7 @@
 import streamlit as st
 
 from api_client import ApiClient, ApiError
+from components.calendar_edit import render_calendar_edit_form
 from components.layout import page_header
 from components.platform_preview import render_platform_preview
 from components.post_image import load_post_image
@@ -132,11 +133,39 @@ def render_publishing_queue(
                     st.error(f"Connect **{platform_label}** in Connections to publish this post.")
             st.subheader("Feed preview")
             _render_feed_preview(client, token, company_id, company_name, item)
+
+            if can_edit and st.session_state.get(f"edit_queue_{item['id']}"):
+                st.divider()
+                render_calendar_edit_form(
+                    client,
+                    token,
+                    company_id,
+                    item,
+                    key_prefix=f"queue_{item['id']}",
+                    success_message="Queued post updated.",
+                )
+                if st.button("Done editing", key=f"done_edit_queue_{item['id']}"):
+                    st.session_state.pop(f"edit_queue_{item['id']}", None)
+                    st.rerun()
+                continue
+
             if can_edit:
-                if st.button(
+                col_edit, col_delete, col_publish = st.columns(3)
+                if col_edit.button("Edit", key=f"edit_queue_{item['id']}", use_container_width=True):
+                    st.session_state[f"edit_queue_{item['id']}"] = True
+                    st.rerun()
+                if col_delete.button("Delete", key=f"delete_queue_{item['id']}", use_container_width=True):
+                    try:
+                        client.delete_calendar_item(token, company_id, item["id"])
+                        st.success("Post removed from queue.")
+                        st.rerun()
+                    except ApiError as exc:
+                        st.error(str(exc))
+                if col_publish.button(
                     f"Publish to {target_label}",
                     key=f"publish_{item['id']}",
                     disabled=not _item_publish_ready(accounts, item),
+                    use_container_width=True,
                 ):
                     try:
                         result = client.publish_item(token, company_id, item["id"])

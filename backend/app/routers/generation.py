@@ -8,7 +8,7 @@ from app.database import get_session
 from app.models.tenancy import Company, CompanyUser
 from app.schemas.content import CalendarItemRead, CalendarItemContentUpdate, GeneratePostRequest, GeneratePostResponse, WeekSlotsResponse
 from app.security import get_current_company, require_company_editor
-from app.services.calendar import approve_calendar_item, queue_calendar_item, update_calendar_item
+from app.services.calendar import approve_calendar_item, delete_calendar_item, queue_calendar_item, update_calendar_item
 from app.services.generation import generate_post, get_week_slots, list_calendar_items
 
 router = APIRouter(prefix="/companies/{company_id}", tags=["generation"])
@@ -70,3 +70,13 @@ def queue_item(
     session: Annotated[Session, Depends(get_session)],
 ) -> CalendarItemRead:
     return queue_calendar_item(session, company.id, item_id)
+
+
+@router.delete("/calendar/{item_id}", status_code=204)
+def remove_calendar_item(
+    item_id: int,
+    company: Annotated[Company, Depends(get_current_company)],
+    _: Annotated[CompanyUser, Depends(require_company_editor)],
+    session: Annotated[Session, Depends(get_session)],
+) -> None:
+    delete_calendar_item(session, company.id, item_id)

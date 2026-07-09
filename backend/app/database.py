@@ -57,6 +57,27 @@ def _sqlite_migrations() -> None:
                 conn.execute(text(f"ALTER TABLE connected_accounts ADD COLUMN {col} {col_type}"))
                 conn.commit()
 
+        upload_cols = conn.execute(text("PRAGMA table_info(uploaded_files)")).fetchall()
+        upload_col_names = {row[1] for row in upload_cols}
+        if "content_bytes" not in upload_col_names:
+            conn.execute(text("ALTER TABLE uploaded_files ADD COLUMN content_bytes BLOB"))
+            conn.commit()
+
+
+def _postgres_migrations() -> None:
+    if settings.database_url.startswith("sqlite"):
+        return
+    with engine.connect() as conn:
+        result = conn.execute(
+            text(
+                "SELECT column_name FROM information_schema.columns "
+                "WHERE table_name = 'uploaded_files' AND column_name = 'content_bytes'"
+            )
+        )
+        if result.fetchone() is None:
+            conn.execute(text("ALTER TABLE uploaded_files ADD COLUMN content_bytes BYTEA"))
+            conn.commit()
+
 
 def init_db() -> None:
     # Import models so SQLModel registers all tables before create_all.
@@ -66,6 +87,7 @@ def init_db() -> None:
     uploads_path = BACKEND_DIR / settings.uploads_dir
     uploads_path.mkdir(parents=True, exist_ok=True)
     _sqlite_migrations()
+    _postgres_migrations()
 
 
 def get_session() -> Generator[Session, None, None]:

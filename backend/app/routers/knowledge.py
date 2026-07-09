@@ -1,7 +1,7 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, Query, UploadFile
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from sqlmodel import Session
 
 from app.database import get_session
@@ -13,6 +13,7 @@ from app.services.files import (
     create_knowledge_from_upload,
     file_path,
     get_uploaded_file,
+    read_file_bytes,
     save_upload,
 )
 from app.services.knowledge import create_knowledge, delete_knowledge, list_knowledge
@@ -71,4 +72,7 @@ def download_file(
 ) -> FileResponse:
     record = get_uploaded_file(session, company.id, file_id)
     path = file_path(record)
-    return FileResponse(path, media_type=record.mime_type, filename=record.original_filename)
+    if path.exists():
+        return FileResponse(path, media_type=record.mime_type, filename=record.original_filename)
+    data = read_file_bytes(record)
+    return Response(content=data, media_type=record.mime_type)

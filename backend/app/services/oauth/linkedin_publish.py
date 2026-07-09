@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-
 import httpx
 
 from app.schemas.content import GeneratedPostContent
@@ -67,7 +65,7 @@ def _parse_linkedin_error(response: httpx.Response) -> str:
     return str(payload)
 
 
-def _upload_image(access_token: str, owner_urn: str, image_path: Path, mime_type: str) -> str:
+def _upload_image(access_token: str, owner_urn: str, image_bytes: bytes, mime_type: str) -> str:
     register_payload = {
         "registerUploadRequest": {
             "recipes": ["urn:li:digitalmediaRecipe:feedshare-image"],
@@ -100,7 +98,6 @@ def _upload_image(access_token: str, owner_urn: str, image_path: Path, mime_type
         upload_url = upload_info["uploadUrl"]
         upload_headers = upload_info.get("headers", {})
 
-        image_bytes = image_path.read_bytes()
         put_headers = {"Authorization": f"Bearer {access_token}", **upload_headers}
         if "Content-Type" not in put_headers:
             put_headers["Content-Type"] = mime_type
@@ -120,7 +117,7 @@ def publish_post(
     access_token: str,
     external_account_id: str,
     content: GeneratedPostContent,
-    image_path: Path | None = None,
+    image_bytes: bytes | None = None,
     image_mime_type: str | None = None,
     account_type: str = "profile",
 ) -> str:
@@ -133,11 +130,11 @@ def publish_post(
         "shareMediaCategory": "NONE",
     }
 
-    if image_path is not None:
-        if not image_path.exists():
+    if image_bytes is not None:
+        if not image_bytes:
             raise LinkedInPublishError("Post image file is missing on the server.")
         mime = image_mime_type or "image/jpeg"
-        asset_urn = _upload_image(access_token, author, image_path, mime)
+        asset_urn = _upload_image(access_token, author, image_bytes, mime)
         share_content = {
             "shareCommentary": {"text": text},
             "shareMediaCategory": "IMAGE",

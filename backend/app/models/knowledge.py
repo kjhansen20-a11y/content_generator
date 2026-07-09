@@ -2,6 +2,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Optional
 
+from sqlalchemy import Column, LargeBinary
 from sqlmodel import Field, SQLModel
 
 
@@ -32,4 +33,5 @@ class UploadedFile(SQLModel, table=True):
     mime_type: str = Field(max_length=128)
     size_bytes: int = Field(default=0)
     kind: FileKind = Field(default=FileKind.knowledge)
+    content_bytes: bytes | None = Field(default=None, sa_column=Column(LargeBinary, nullable=True))
     created_at: datetime = Field(default_factory=datetime.utcnow)

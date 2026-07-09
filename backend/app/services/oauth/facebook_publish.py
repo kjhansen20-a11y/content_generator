@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-
 import httpx
 
 from app.schemas.content import GeneratedPostContent
@@ -35,7 +33,7 @@ def publish_post(
     page_id: str,
     page_access_token: str,
     content: GeneratedPostContent,
-    image_path: Path | None = None,
+    image_bytes: bytes | None = None,
     image_mime_type: str | None = None,
 ) -> str:
     text = format_post_text(content)
@@ -43,13 +41,13 @@ def publish_post(
         raise FacebookPublishError("Post text is empty.")
 
     with httpx.Client(timeout=60) as client:
-        if image_path is not None:
-            if not image_path.exists():
+        if image_bytes is not None:
+            if not image_bytes:
                 raise FacebookPublishError("Post image file is missing on the server.")
             response = client.post(
                 f"{FACEBOOK_GRAPH}/{page_id}/photos",
                 data={"message": text, "access_token": page_access_token},
-                files={"source": (image_path.name, image_path.read_bytes(), image_mime_type or "image/jpeg")},
+                files={"source": ("post-image.jpg", image_bytes, image_mime_type or "image/jpeg")},
             )
         else:
             response = client.post(

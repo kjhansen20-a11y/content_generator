@@ -78,6 +78,7 @@ async def save_upload(
         mime_type=content_type,
         size_bytes=len(data),
         kind=kind,
+        content_bytes=data if kind == FileKind.post_image else None,
     )
     session.add(record)
     session.commit()
@@ -96,14 +97,27 @@ def file_path(record: UploadedFile) -> Path:
     return company_upload_dir(record.company_id) / record.stored_filename
 
 
-def extract_text_from_file(record: UploadedFile) -> str | None:
+def read_file_bytes(record: UploadedFile) -> bytes:
     path = file_path(record)
-    if not path.exists():
+    if path.exists():
+        return path.read_bytes()
+    if record.content_bytes:
+        return record.content_bytes
+    raise HTTPException(
+        status_code=status.HTTP_404_NOT_FOUND,
+        detail="File content not found on server",
+    )
+
+
+def extract_text_from_file(record: UploadedFile) -> str | None:
+    try:
+        raw = read_file_bytes(record)
+    except HTTPException:
         return None
     try:
         return extract_text_from_bytes(
             record.original_filename,
-            path.read_bytes(),
+            raw,
             record.mime_type,
         )
     except ValueError:

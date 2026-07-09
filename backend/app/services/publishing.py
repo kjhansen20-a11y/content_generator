@@ -6,7 +6,6 @@ from fastapi import HTTPException, status
 from sqlmodel import Session, select
 
 from app.models.auth import User
-from pathlib import Path
 
 from app.models.content import (
     CalendarItemStatus,
@@ -28,7 +27,7 @@ from app.schemas.publishing import (
     PublishingJobRead,
     QueueItemRead,
 )
-from app.services.files import file_path, get_uploaded_file
+from app.services.files import get_uploaded_file, read_file_bytes
 from app.services.generation import _parse_content, _to_calendar_item_read
 from app.services.oauth import facebook_publish, linkedin_publish
 from app.services.social_oauth import get_active_real_account
@@ -222,11 +221,14 @@ def _load_post_image(
     session: Session,
     company_id: int,
     post: GeneratedPost,
-) -> tuple[Path | None, str | None]:
+) -> tuple[bytes | None, str | None]:
     if not post.image_file_id:
         return None, None
     upload = get_uploaded_file(session, company_id, post.image_file_id)
-    return file_path(upload), upload.mime_type
+    try:
+        return read_file_bytes(upload), upload.mime_type
+    except HTTPException:
+        return None, None
 
 
 def _publish_to_linkedin(
@@ -244,14 +246,19 @@ def _publish_to_linkedin(
 
     content = _parse_content(json.loads(post.content_json))
     access_token = _account_access_token(account, platform=Platform.linkedin)
-    image_path, image_mime = _load_post_image(session, company_id, post)
+    image_bytes, image_mime = _load_post_image(session, company_id, post)
+    if post.image_file_id and not image_bytes:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Post image file is missing on the server. Re-generate the post with a new image.",
+        )
 
     try:
         external_id = linkedin_publish.publish_post(
             access_token=access_token,
             external_account_id=account.external_account_id,
             content=content,
-            image_path=image_path,
+            image_bytes=image_bytes,
             image_mime_type=image_mime,
             account_type=account.account_type or "profile",
         )
@@ -279,14 +286,19 @@ def _publish_to_facebook(
 
     content = _parse_content(json.loads(post.content_json))
     page_token = _account_access_token(account, platform=Platform.facebook)
-    image_path, image_mime = _load_post_image(session, company_id, post)
+    image_bytes, image_mime = _load_post_image(session, company_id, post)
+    if post.image_file_id and not image_bytes:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Post image file is missing on the server. Re-generate the post with a new image.",
+        )
 
     try:
         external_id = facebook_publish.publish_post(
             page_id=account.external_account_id,
             page_access_token=page_token,
             content=content,
-            image_path=image_path,
+            image_bytes=image_bytes,
             image_mime_type=image_mime,
         )
     except facebook_publish.FacebookPublishError as exc:

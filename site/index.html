@@ -3,56 +3,191 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Krede Solutions — Post Generator</title>
-  <style>
-    body {
-      font-family: system-ui, -apple-system, sans-serif;
-      max-width: 640px;
-      margin: 4rem auto;
-      padding: 0 1.25rem;
-      line-height: 1.6;
-      color: #0f172a;
-      background: #f8fafc;
-    }
-    h1 { font-size: 1.75rem; margin-bottom: 0.25rem; }
-    p { color: #475569; }
-    a {
-      color: #2563eb;
-      text-decoration: none;
-    }
-    a:hover { text-decoration: underline; }
-    .card {
-      background: #fff;
-      border: 1px solid #e2e8f0;
-      border-radius: 10px;
-      padding: 1.5rem;
-      margin-top: 1.5rem;
-    }
-    .btn {
-      display: inline-block;
-      margin-top: 1rem;
-      padding: 0.65rem 1.25rem;
-      background: #2563eb;
-      color: #fff !important;
-      border-radius: 8px;
-      font-weight: 600;
-      text-decoration: none;
-    }
-    .btn:hover { background: #1d4ed8; text-decoration: none; }
-  </style>
+  <meta name="description" content="Kredesolutions Post Generator — B2B content marketing platform to plan, generate, and publish social posts to LinkedIn and Facebook." />
+  <title>Kredesolutions — Post Generator for B2B Content Marketing</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/styles.css" />
 </head>
 <body>
-  <h1>Krede Solutions</h1>
-  <p>B2B content marketing platform — plan, generate, and publish social posts.</p>
+  <header class="site-header">
+    <div class="container site-header__inner">
+      <a class="brand" href="/" aria-label="Kredesolutions home">
+        <svg class="brand__mark" width="32" height="32" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+          <rect width="32" height="32" rx="8" fill="#2563EB"/>
+          <path d="M9 22V10h3.2l4.1 7.2L20.4 10H23.5v12h-2.6v-7.4l-3.8 6.6h-1.4l-3.8-6.6V22H9z" fill="#fff"/>
+        </svg>
+        Kredesolutions
+      </a>
+      <nav class="site-nav" aria-label="Main">
+        <a href="#features">Features</a>
+        <a href="/privacy">Privacy</a>
+        <a class="btn btn--primary" href="https://kjsolutioncontentgenerator.streamlit.app/">Open app</a>
+      </nav>
+    </div>
+  </header>
 
-  <div class="card">
-    <p><strong>Post Generator</strong> helps businesses create and publish content to LinkedIn and Facebook from one dashboard.</p>
-    <a class="btn" href="https://kjsolutioncontentgenerator.streamlit.app/">Open Post Generator</a>
-  </div>
+  <main>
+    <section class="hero">
+      <div class="container">
+        <div class="hero__badge">
+          <span class="hero__badge-dot" aria-hidden="true"></span>
+          B2B content marketing platform
+        </div>
+        <h1>Plan, generate, and publish social content — from one dashboard</h1>
+        <p class="hero__lead">
+          Krede Solutions helps marketing teams create on-brand posts with AI, organize a content calendar,
+          and publish directly to LinkedIn and Facebook.
+        </p>
+        <div class="btn-group">
+          <a class="btn btn--primary" href="https://kjsolutioncontentgenerator.streamlit.app/">
+            Open Post Generator
+          </a>
+          <a class="btn btn--secondary" href="/privacy">Privacy Policy</a>
+        </div>
+        <span class="hero__company">Operated by <strong>Kredesolutions</strong></span>
+      </div>
+    </section>
 
-  <p style="margin-top: 2rem; font-size: 0.9rem;">
-    <a href="https://www.kredesolutions.com/privacy">Privacy Policy</a>
-    · Contact: <a href="mailto:kristian@kredesolutions.com">kristian@kredesolutions.com</a>
-  </p>
+    <section class="section section--alt" id="features">
+      <div class="container">
+        <div class="section__header">
+          <p class="section__eyebrow">How it works</p>
+          <h2 class="section__title">Everything you need to run B2B social content</h2>
+          <p class="section__desc">
+            Post Generator is built for companies that want consistent messaging without juggling
+            spreadsheets, docs, and multiple publishing tools.
+          </p>
+        </div>
+
+        <div class="feature-grid">
+          <article class="feature-card">
+            <div class="feature-card__icon" aria-hidden="true">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/>
+                <rect x="9" y="3" width="6" height="4" rx="1"/>
+                <path d="M9 12h6"/><path d="M9 16h4"/>
+              </svg>
+            </div>
+            <h3>Plan your content</h3>
+            <p>
+              Build marketing plans with pillars, themes, and a content calendar so your team
+              always knows what to publish next.
+            </p>
+          </article>
+
+          <article class="feature-card">
+            <div class="feature-card__icon" aria-hidden="true">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 3v3"/><path d="m6.3 6.3 2.1 2.1"/><path d="M3 12h3"/>
+                <path d="m6.3 17.7 2.1-2.1"/><path d="M12 18v3"/><path d="m17.7 17.7-2.1-2.1"/>
+                <path d="M18 12h3"/><path d="m17.7 6.3-2.1 2.1"/>
+                <circle cx="12" cy="12" r="4"/>
+              </svg>
+            </div>
+            <h3>Generate with AI</h3>
+            <p>
+              Create on-brand posts from your company profile and knowledge base. Edit, refine,
+              and queue content before it goes live.
+            </p>
+          </article>
+
+          <article class="feature-card">
+            <div class="feature-card__icon" aria-hidden="true">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/>
+                <polyline points="16 6 12 2 8 6"/>
+                <line x1="12" y1="2" x2="12" y2="15"/>
+              </svg>
+            </div>
+            <h3>Publish to LinkedIn &amp; Facebook</h3>
+            <p>
+              Connect your accounts securely and publish when you are ready. Posts go out only
+              when you authorize and trigger publishing.
+            </p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="container">
+        <div class="product-card">
+          <h2>Post Generator by Kredesolutions</h2>
+          <p>
+            A professional content marketing tool for businesses. Manage brand voice, generate
+            social posts with AI, schedule content, and publish to LinkedIn and Facebook — all
+            from a single dashboard designed for marketing teams.
+          </p>
+          <div class="btn-group">
+            <a class="btn btn--secondary" href="https://kjsolutioncontentgenerator.streamlit.app/">
+              Launch Post Generator
+            </a>
+            <a class="btn btn--secondary" href="/privacy">View Privacy Policy</a>
+          </div>
+          <div class="product-card__meta">
+            <span>Company: <strong>Kredesolutions</strong></span>
+            <span>Contact: <a href="mailto:kristian@kredesolutions.com">kristian@kredesolutions.com</a></span>
+            <span>Privacy: <a href="https://www.kredesolutions.com/privacy">www.kredesolutions.com/privacy</a></span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section section--alt">
+      <div class="container container--narrow">
+        <div class="section__header">
+          <p class="section__eyebrow">Transparency</p>
+          <h2 class="section__title">Built for trust and compliance</h2>
+          <p class="section__desc">
+            Clear policies, secure OAuth connections, and direct contact information for
+            reviewers, customers, and partners.
+          </p>
+        </div>
+
+        <div class="trust-grid">
+          <div class="trust-item">
+            <div class="trust-item__icon" aria-hidden="true">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+              </svg>
+            </div>
+            <div>
+              <h3>Privacy-first publishing</h3>
+              <p>Social passwords are never stored. OAuth tokens are encrypted and used only when you publish.</p>
+            </div>
+          </div>
+
+          <div class="trust-item">
+            <div class="trust-item__icon" aria-hidden="true">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                <polyline points="22,6 12,13 2,6"/>
+              </svg>
+            </div>
+            <div>
+              <h3>Reach us directly</h3>
+              <p>Questions about data use or your account? Email <a href="mailto:kristian@kredesolutions.com">kristian@kredesolutions.com</a>.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container site-footer__inner">
+      <span class="site-footer__brand">Kredesolutions</span>
+      <div class="site-footer__links">
+        <a href="https://kjsolutioncontentgenerator.streamlit.app/">Post Generator</a>
+        <a href="/privacy">Privacy Policy</a>
+        <a href="mailto:kristian@kredesolutions.com">kristian@kredesolutions.com</a>
+      </div>
+      <p class="site-footer__copy">
+        &copy; 2026 Kredesolutions. B2B content marketing software for planning, generating, and publishing social posts.
+      </p>
+    </div>
+  </footer>
 </body>
 </html>

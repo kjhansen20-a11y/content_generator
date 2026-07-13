@@ -11,7 +11,7 @@ services:
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /health
     domains:
-      - api.kj-solution.com
+      - api.kredesolutions.com
     envVars:
       - key: PYTHON_VERSION
         value: "3.12.9"
@@ -22,7 +22,7 @@ services:
       - key: DATABASE_URL
         sync: false
       - key: APP_PUBLIC_URL
-        value: https://api.kj-solution.com
+        value: https://api.kredesolutions.com
       - key: DASHBOARD_URL
         value: https://kjsolutioncontentgenerator.streamlit.app
       - key: OPENAI_API_KEY

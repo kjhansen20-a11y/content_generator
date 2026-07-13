@@ -2,7 +2,7 @@ import streamlit as st
 
 from api_client import ApiClient, ApiError
 from components.calendar_edit import render_calendar_edit_form
-from components.layout import page_header
+from components.layout import page_header, section_title
 from components.platform_preview import render_platform_preview
 from components.post_image import load_post_image
 
@@ -80,6 +80,7 @@ def render_publishing_queue(
     page_header(
         "Publishing Queue",
         "Each queued post publishes to the platform set when you created it (LinkedIn or Facebook).",
+        eyebrow="Publishing",
     )
 
     try:
@@ -94,7 +95,7 @@ def render_publishing_queue(
         return
 
     ready_count = sum(1 for item in queue if _item_publish_ready(accounts, item))
-    st.subheader(f"Queued posts ({len(queue)})")
+    section_title(f"Queued posts ({len(queue)})")
     if ready_count < len(queue):
         st.warning(
             "Some queued posts are missing a connected account for their target platform. "
@@ -197,7 +198,7 @@ def render_previous_posts(
     company_id: int,
     company_name: str = "Your Company",
 ) -> None:
-    page_header("Previous Posts", "Posts that have been published and delivered.")
+    page_header("Previous Posts", "Posts that have been published and delivered.", eyebrow="Publishing")
 
     try:
         jobs = client.list_publishing_jobs(token, company_id)
@@ -211,7 +212,7 @@ def render_previous_posts(
         st.info("No posts have been published yet. Publish a queued post to see it here.")
         return
 
-    st.subheader(f"Published posts ({len(published)})")
+    section_title(f"Published posts ({len(published)})")
     for job in published:
         platform = str(job.get("platform") or "unknown")
         platform_label = PLATFORM_LABELS.get(platform, platform.title())

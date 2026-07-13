@@ -3,7 +3,7 @@ from datetime import date, time
 import streamlit as st
 
 from api_client import ApiClient, ApiError
-from components.layout import page_header
+from components.layout import page_header, section_title
 from components.platform_preview import render_platform_preview
 from components.post_image import load_post_image
 from components.calendar_edit import render_calendar_edit_form
@@ -58,6 +58,7 @@ def render_generate_post(client: ApiClient, token: str, company_id: int, can_edi
     page_header(
         "Generate Post",
         "Instant on-brand posts, manual scheduling, or follow your marketing plan slots.",
+        eyebrow="Create",
     )
 
     if not can_edit:
@@ -370,7 +371,7 @@ def _render_last_generated(client: ApiClient, token: str, company_id: int) -> No
         return
 
     st.divider()
-    st.subheader("Your new post")
+    section_title("Your new post")
     slot_label = st.session_state.pop("last_slot_label", None)
     schedule_label = st.session_state.pop("last_schedule_label", None)
     caption = f"Status: {item['status'].capitalize()} · **Publish to: {PLATFORM_LABELS.get(item['platform'], item['platform'].title())}**"

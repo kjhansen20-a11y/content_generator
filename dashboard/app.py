@@ -12,7 +12,7 @@ import extra_streamlit_components as stx
 import streamlit as st
 
 from api_client import ApiClient, ApiError
-from components.layout import auth_hero, inject_global_styles
+from components.layout import auth_footer, auth_hero, inject_global_styles, render_authenticated_sidebar
 from views.admin import render_admin_dashboard
 from views.brand_profile import render_brand_profile
 from views.company_profile import render_company_profile
@@ -22,7 +22,12 @@ from views.marketing_plan import render_marketing_plan
 from views.connections import render_connections
 from views.publishing import render_previous_posts, render_publishing_queue
 
-st.set_page_config(page_title="Post Generator", page_icon="📅", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(
+    page_title="Kredesolutions — Post Generator",
+    page_icon="📅",
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
 inject_global_styles()
 
 TOKEN_COOKIE = "pg_token"
@@ -223,24 +228,20 @@ if st.session_state.token:
         st.error(f"Cannot reach API at {st.session_state.api_base}. Start the backend first.")
         st.stop()
 
-    with st.sidebar.expander("Account", expanded=False):
-        st.caption(st.session_state.user["email"])
-        if st.session_state.companies:
-            st.caption(st.session_state.companies[0]["name"])
-        if st.session_state.user.get("is_platform_admin"):
-            st.caption("Platform admin")
+    nav_options: list[str] | None = None
+    company_name: str | None = None
 
     if st.session_state.companies:
         st.session_state.selected_company_id = st.session_state.companies[0]["id"]
+        company_name = st.session_state.companies[0]["name"]
 
-        st.sidebar.divider()
         nav_options = [
             "Home",
             "Company Profile",
             "Brand Profile",
+            "Connections",
             "Marketing Plan",
             "Generate Post",
-            "Connections",
             "Publishing Queue",
             "Previous Posts",
         ]
@@ -253,10 +254,13 @@ if st.session_state.token:
             st.session_state.page = pending_nav
         elif "page" not in st.session_state:
             st.session_state.page = nav_options[0]
-        st.sidebar.radio("Navigation", nav_options, key="page")
 
-    st.sidebar.divider()
-    st.sidebar.button("Log out", key="logout_button", use_container_width=True, on_click=request_logout)
+    render_authenticated_sidebar(
+        st.session_state.user,
+        company_name=company_name,
+        nav_options=nav_options,
+        on_logout=request_logout,
+    )
 
     company = selected_company()
 
@@ -340,38 +344,49 @@ else:
         st.error(f"Cannot reach API at {st.session_state.api_base}. Start the backend first.")
         st.stop()
 
+    # No sidebar content on login — hide empty expanded panel.
+    st.markdown(
+        '<style>[data-testid="stSidebar"]{display:none!important;}</style>',
+        unsafe_allow_html=True,
+    )
+
     _, center, _ = st.columns([1, 1.2, 1])
     with center:
-        auth_hero()
-        tab_login, tab_register = st.tabs(["Log in", "Register"])
+        with st.container(border=True):
+            auth_hero()
+            tab_login, tab_register = st.tabs(["Log in", "Register"])
 
-        with tab_login:
-            with st.form("login_form"):
-                email = st.text_input("Email")
-                password = st.text_input("Password", type="password")
-                submitted = st.form_submit_button("Log in", type="primary", use_container_width=True)
+            with tab_login:
+                with st.form("login_form"):
+                    email = st.text_input("Email")
+                    password = st.text_input("Password", type="password")
+                    submitted = st.form_submit_button("Log in", type="primary", use_container_width=True)
 
-            if submitted:
-                try:
-                    result = client.login(email.strip(), password)
-                    set_session(result["access_token"])
-                    load_profile(result["access_token"])
-                    st.rerun()
-                except ApiError as exc:
-                    st.error(str(exc))
+                if submitted:
+                    try:
+                        result = client.login(email.strip(), password)
+                        set_session(result["access_token"])
+                        load_profile(result["access_token"])
+                        st.rerun()
+                    except ApiError as exc:
+                        st.error(str(exc))
 
-        with tab_register:
-            with st.form("register_form"):
-                reg_email = st.text_input("Email", key="reg_email")
-                reg_password = st.text_input("Password", type="password", key="reg_password")
-                company_name = st.text_input("Company name")
-                reg_submitted = st.form_submit_button("Create account", type="primary", use_container_width=True)
+            with tab_register:
+                with st.form("register_form"):
+                    reg_email = st.text_input("Email", key="reg_email")
+                    reg_password = st.text_input("Password", type="password", key="reg_password")
+                    company_name = st.text_input("Company name")
+                    reg_submitted = st.form_submit_button(
+                        "Create account", type="primary", use_container_width=True
+                    )
 
-            if reg_submitted:
-                try:
-                    result = client.register(reg_email.strip(), reg_password, company_name.strip())
-                    set_session(result["access_token"])
-                    load_profile(result["access_token"])
-                    st.rerun()
-                except ApiError as exc:
-                    st.error(str(exc))
+                if reg_submitted:
+                    try:
+                        result = client.register(reg_email.strip(), reg_password, company_name.strip())
+                        set_session(result["access_token"])
+                        load_profile(result["access_token"])
+                        st.rerun()
+                    except ApiError as exc:
+                        st.error(str(exc))
+
+            auth_footer()

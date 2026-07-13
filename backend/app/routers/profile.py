@@ -12,8 +12,10 @@ from app.schemas.profile import (
     BrandProfileUpdate,
     CompanyProfileRead,
     CompanyProfileUpdate,
+    ScrapeCompanyProfileRequest,
 )
 from app.security import get_current_company, require_company_editor
+from app.services.company_scraper import scrape_company_profile
 
 router = APIRouter(prefix="/companies/{company_id}", tags=["profiles"])
 
@@ -24,6 +26,29 @@ def _empty_company_profile(company_id: int) -> CompanyProfileRead:
 
 def _empty_brand_profile(company_id: int) -> BrandProfileRead:
     return BrandProfileRead(company_id=company_id)
+
+
+def _upsert_company_profile(
+    session: Session,
+    company_id: int,
+    data: dict,
+) -> CompanyProfile:
+    profile = session.exec(
+        select(CompanyProfile).where(CompanyProfile.company_id == company_id)
+    ).first()
+
+    if profile is None:
+        profile = CompanyProfile(company_id=company_id, **data)
+        session.add(profile)
+    else:
+        for key, value in data.items():
+            setattr(profile, key, value)
+        profile.updated_at = datetime.utcnow()
+        session.add(profile)
+
+    session.commit()
+    session.refresh(profile)
+    return profile
 
 
 @router.get("/profile", response_model=CompanyProfileRead)
@@ -46,22 +71,21 @@ def upsert_company_profile(
     _: Annotated[CompanyUser, Depends(require_company_editor)],
     session: Annotated[Session, Depends(get_session)],
 ) -> CompanyProfileRead:
-    profile = session.exec(
-        select(CompanyProfile).where(CompanyProfile.company_id == company.id)
-    ).first()
-
     data = payload.model_dump(exclude_unset=True)
-    if profile is None:
-        profile = CompanyProfile(company_id=company.id, **data)
-        session.add(profile)
-    else:
-        for key, value in data.items():
-            setattr(profile, key, value)
-        profile.updated_at = datetime.utcnow()
-        session.add(profile)
+    profile = _upsert_company_profile(session, company.id, data)
+    return CompanyProfileRead.model_validate(profile)
 
-    session.commit()
-    session.refresh(profile)
+
+@router.post("/profile/scrape-from-url", response_model=CompanyProfileRead)
+def scrape_company_profile_from_url(
+    payload: ScrapeCompanyProfileRequest,
+    company: Annotated[Company, Depends(get_current_company)],
+    _: Annotated[CompanyUser, Depends(require_company_editor)],
+    session: Annotated[Session, Depends(get_session)],
+) -> CompanyProfileRead:
+    profile_update = scrape_company_profile(session, company, payload.url)
+    data = profile_update.model_dump(exclude_none=True)
+    profile = _upsert_company_profile(session, company.id, data)
     return CompanyProfileRead.model_validate(profile)
 
 

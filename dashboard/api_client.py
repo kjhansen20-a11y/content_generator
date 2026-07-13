@@ -87,6 +87,17 @@ class ApiClient:
             json=payload,
         )
 
+    def scrape_company_profile_from_url(
+        self, token: str, company_id: int, url: str
+    ) -> dict[str, Any]:
+        return self._request(
+            "POST",
+            f"/api/v1/companies/{company_id}/profile/scrape-from-url",
+            token=token,
+            json={"url": url},
+            timeout=120,
+        )
+
     def get_brand_profile(self, token: str, company_id: int) -> dict[str, Any]:
         return self._request("GET", f"/api/v1/companies/{company_id}/brand", token=token)
 

@@ -20,6 +20,10 @@ PROMPT_DEFINITIONS: dict[str, dict[str, str]] = {
     "marketing_plan": {"kind": "planning", "description": "AI marketing plan generation guide"},
     "post_brief": {"kind": "generation", "description": "Auto-brief for post generation"},
     "post_revise": {"kind": "generation", "description": "Revise draft from quality feedback"},
+    "company_profile_scrape": {
+        "kind": "profile",
+        "description": "Extract company profile fields from website content",
+    },
 }
 
 

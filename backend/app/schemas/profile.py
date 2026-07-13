@@ -27,6 +27,10 @@ class CompanyProfileUpdate(BaseModel):
     products_services: str | None = None
 
 
+class ScrapeCompanyProfileRequest(BaseModel):
+    url: str = Field(min_length=1, max_length=2048)
+
+
 class BrandProfileRead(BaseModel):
     company_id: int
     tone_of_voice: str | None = None

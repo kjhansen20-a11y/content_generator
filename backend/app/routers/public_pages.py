@@ -27,6 +27,6 @@ def home() -> str:
 </body></html>"""
 
 
-@router.get("/privacy")
+@router.api_route("/privacy", methods=["GET", "HEAD"])
 def privacy_policy() -> FileResponse:
     return FileResponse(_STATIC / "privacy.html", media_type="text/html")

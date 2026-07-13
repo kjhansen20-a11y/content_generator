@@ -24,7 +24,7 @@ services:
       - key: APP_PUBLIC_URL
         value: https://api.kredesolutions.com
       - key: DASHBOARD_URL
-        value: https://kjsolutioncontentgenerator.streamlit.app
+        value: https://kredesolutions.streamlit.app
       - key: OPENAI_API_KEY
         sync: false
       - key: LINKEDIN_CLIENT_ID

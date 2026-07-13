@@ -112,6 +112,9 @@ svg {
 
 .brand__mark {
   flex-shrink: 0;
+  display: block;
+  height: 36px;
+  width: auto;
 }
 
 .site-nav {

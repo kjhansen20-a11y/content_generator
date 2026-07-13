@@ -1,7 +1,7 @@
 import streamlit as st
 
 from api_client import ApiClient, ApiError
-from components.layout import page_header
+from components.layout import page_header, section_title
 
 
 POST_TYPE_LABELS = {
@@ -67,6 +67,7 @@ def render_connections(
     page_header(
         "Connections",
         "Link your LinkedIn profile and Facebook Page so Post Generator can publish on your behalf.",
+        eyebrow="Integrations",
     )
 
     _render_facebook_page_picker(client, token, company_id)
@@ -82,7 +83,7 @@ def render_connections(
     my_accounts = [a for a in real_accounts if a.get("connected_by_email") == user_email]
     team_accounts = [a for a in real_accounts if a.get("connected_by_email") != user_email]
 
-    st.subheader("Your connections")
+    section_title("Your connections")
     if my_accounts:
         for account in my_accounts:
             col1, col2 = st.columns([4, 1])
@@ -103,7 +104,7 @@ def render_connections(
         st.info("You have not connected any accounts yet. Use the cards below to get started.")
 
     if team_accounts:
-        st.subheader("Team connections")
+        section_title("Team connections")
         st.caption("Other members of your company have connected these accounts.")
         for account in team_accounts:
             owner = account.get("connected_by_email") or "teammate"
@@ -155,7 +156,7 @@ def render_connections(
         st.divider()
 
     st.divider()
-    st.subheader("Connect an account")
+    section_title("Connect an account")
     st.caption(
         "You will sign in on LinkedIn or Facebook with **your own** account. "
         "Each team member connects their own profile or Page."

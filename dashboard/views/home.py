@@ -1,20 +1,24 @@
 import streamlit as st
 
 from api_client import ApiClient, ApiError
-from components.layout import page_header, status_label, workflow_steps
+from components.layout import page_header, section_title, status_badge, workflow_steps
 
 WORKFLOW_STEPS = [
     {
-        "title": "Set up company and brand profiles",
-        "description": "Add business context and brand voice so AI drafts match your company.",
+        "title": "Company Profile",
+        "description": "In Settings / Setup, add business context so AI drafts match your company.",
     },
     {
-        "title": "Set up Connections",
-        "description": "Connect LinkedIn or Facebook so Post Generator can publish on your behalf.",
+        "title": "Brand Profile",
+        "description": "In Settings / Setup, define brand voice and tone for on-brand content.",
     },
     {
-        "title": "Set up marketing plan",
-        "description": "Define goals, content pillars, and a posting schedule.",
+        "title": "Connections",
+        "description": "In Settings / Setup, connect LinkedIn or Facebook so Post Generator can publish on your behalf.",
+    },
+    {
+        "title": "Marketing Plan",
+        "description": "In Settings / Setup, define goals, content pillars, and a posting schedule.",
     },
     {
         "title": "Generate your first post",
@@ -62,7 +66,8 @@ def _workflow_completion(
     calendar: list[dict],
     queue: list[dict],
 ) -> list[bool]:
-    profiles_done = _company_profile_complete(company_profile) and _brand_profile_complete(brand_profile)
+    company_done = _company_profile_complete(company_profile)
+    brand_done = _brand_profile_complete(brand_profile)
     connections_done = any(
         not account.get("is_mock") and account.get("status") == "active" for account in accounts
     )
@@ -74,7 +79,8 @@ def _workflow_completion(
     )
     published_done = any(item.get("status") == "published" for item in calendar)
     return [
-        profiles_done,
+        company_done,
+        brand_done,
         connections_done,
         plan_done,
         generated_done,
@@ -98,13 +104,13 @@ def render_home_dashboard(
 ) -> None:
     page_header(
         "Dashboard",
-        f"Overview for {company['name']} — track drafts, approvals, and publishing.",
+        f"Overview for {company['name']} — track drafts, queue, and published posts.",
+        eyebrow="Overview",
     )
 
     try:
         calendar = client.list_calendar(token, company["id"])
         queue = client.list_publishing_queue(token, company["id"])
-        knowledge = client.list_knowledge(token, company["id"])
         company_profile = client.get_company_profile(token, company["id"])
         brand_profile = client.get_brand_profile(token, company["id"])
         accounts = client.list_connected_accounts(token, company["id"])
@@ -124,32 +130,34 @@ def render_home_dashboard(
     onboarding_complete = all(completed)
     active_step = _first_incomplete_index(completed)
 
-    cols = st.columns(5)
+    cols = st.columns(3)
     metrics = [
-        ("Drafts", _count_by_status(calendar, "draft"), "Needs review"),
-        ("Approved", _count_by_status(calendar, "approved"), "Ready to queue"),
-        ("Queued", len(queue), "Awaiting publish"),
+        ("Drafts", _count_by_status(calendar, "draft"), "Posts awaiting review"),
+        ("Queued", len(queue), "Posts awaiting publish"),
         ("Published", _count_by_status(calendar, "published"), "Live posts"),
-        ("Knowledge", len(knowledge), "Context entries"),
     ]
     for col, (label, value, hint) in zip(cols, metrics):
         with col:
             st.metric(label=label, value=value, help=hint)
 
     if not onboarding_complete:
-        st.subheader("Setup guide")
+        section_title("Setup guide")
         st.caption("Complete each step to get your first post live.")
         workflow_steps(WORKFLOW_STEPS, completed=completed, active_index=active_step)
         st.markdown("")
 
-    st.subheader("Recent activity")
+    section_title("Recent activity")
     with st.container(border=True):
         if calendar:
             for item in calendar[:5]:
-                status = status_label(item.get("status", "draft"))
+                status = item.get("status", "draft")
                 hook = item.get("hook_preview") or "Untitled"
                 platform = str(item.get("platform", "")).title()
-                st.markdown(f"`{status}` · **{platform}** — {hook}")
+                col_badge, col_text = st.columns([1, 5])
+                with col_badge:
+                    status_badge(status)
+                with col_text:
+                    st.markdown(f"**{platform}** — {hook}")
         else:
             st.caption("No posts yet. Generate your first draft to get started.")
 
